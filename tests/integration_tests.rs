@@ -1,3 +1,4 @@
+use assert_cmd::Command;
 use rand::Rng;
 use std::io::Read;
 use std::io::Seek;
@@ -25,6 +26,9 @@ fn file_to_qr_happy() {
     println!("{:?}", buffer);
 
     // When running qrxfil with it
+    let mut cmd = Command::cargo_bin("qrxfil").unwrap();
+    // Then exit code is zero for success
+    cmd.assert().success();
     // Then a folder is named after the file
     // And folder contains dozens of files
     // And the files are all valid PNG
