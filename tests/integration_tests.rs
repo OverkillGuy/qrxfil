@@ -13,15 +13,18 @@ fn file_to_qr_happy() {
     let size_bytes: i32 = 1024; // 1KB right now
     let mut rng = rand::thread_rng();
     let random_chars: Vec<u8> = (0..size_bytes).map(|_| rng.gen_range(0..255)).collect();
-    input_file.write_binary(&random_chars).unwrap();
+    input_file
+        .write_binary(&random_chars)
+        .expect("Could not write random to file for test seeding");
 
     // When running qrxfil with it
-    let mut cmd = Command::cargo_bin("qrxfil").unwrap();
+    let mut cmd = Command::cargo_bin("qrxfil").expect("Error launching qrxfil command");
     // Then exit code is zero for success
     cmd.arg(input_file.path()).assert().success();
     // Then a folder is named after the file
+
     // And folder contains dozens of files
     // And the files are all valid PNG
 
-    temp.close().unwrap(); // clean up the temp folder
+    temp.close().expect("Error deleting temporary folder"); // clean up the temp folder
 }

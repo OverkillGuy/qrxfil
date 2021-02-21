@@ -17,6 +17,7 @@ fn main() {
 
     // Read the file and print contents (ASCII numbers)
     let mut buffer = Vec::<u8>::new();
-    file.read_to_end(&mut buffer).unwrap();
+    file.read_to_end(&mut buffer)
+        .expect("Error reading input file");
     println!("{:?}", buffer);
 }
