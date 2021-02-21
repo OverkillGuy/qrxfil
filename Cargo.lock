@@ -350,6 +350,7 @@ dependencies = [
  "assert_cmd",
  "assert_fs",
  "base64",
+ "predicates",
  "qrcode",
  "rand",
 ]
