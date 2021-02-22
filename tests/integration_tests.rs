@@ -35,6 +35,11 @@ fn file_to_qr_happy() {
         0,
         "Should have found files inside output directory"
     );
+    // And a base64 version of input file is present
+    output_folder
+        .child("input_b64.txt")
+        .assert(predicate::path::is_file());
+
     // clean up the temp folder
     temp.close().expect("Error deleting temporary folder");
 }
