@@ -1,0 +1,36 @@
+#+TITLE: qrxfil
+
+Exfiltrate files via QR codes.
+
+Splits files across many QR codes for "sending" across air-gapped
+computer systems. Generates numbered PNG files to scan.
+
+The codes contain metadata about chunk number (e.g. "07 of 78") to
+enable out-of-order scanning.
+
+* Dependencies
+
+=qrxfil= is built in Rust, relying on:
+- [[https://crates.io/crates/base64][base64]], to encode binary in ASCII characters
+- [[https://crates.io/crates/qrcode][qrcode]], to generate the codes themselves
+
+* Status
+
+This is a toy project meant to learn Rust, for which a Bash proof of
+concept was built as reference.
+
+None of the features announced are currently implemented
+
+* Development
+
+Using =cargo=, build the binary
+
+#+begin_src shell
+cargo build
+#+end_src
+
+Run tests:
+
+#+begin_src shell
+cargo test
+#+end_src
