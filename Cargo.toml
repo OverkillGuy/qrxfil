@@ -9,6 +9,7 @@ edition = "2018"
 [dependencies]
 qrcode = "0.11"
 base64 = "0.13.0"
+structopt = "0.3.21"
 
 [dev-dependencies]
 rand = "0.8.3"

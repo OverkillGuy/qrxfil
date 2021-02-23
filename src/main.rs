@@ -1,32 +1,39 @@
-use std::env;
-use std::fs;
+#![feature(seek_stream_len)]
+#![warn(clippy::pedantic)]
+
 use std::io::Read;
 use std::io::Write;
+use std::io::{BufRead, BufReader};
+use std::{fs, path::PathBuf};
 // use std::io::{BufRead, BufReader};
 use std::io::{Seek, SeekFrom};
-use std::path::Path;
 use std::process;
 
 extern crate base64;
 
+mod chunk_iterator;
+use structopt::StructOpt;
+
+#[derive(Debug, StructOpt)]
+pub struct Args {
+    #[structopt(short, long = "input")]
+    pub input_file: PathBuf,
+    #[structopt(short, long = "output")]
+    pub output_directory: PathBuf,
+}
+
 fn main() {
+    let args = Args::from_args();
     // Check arguments for file to open
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        let binary_name = &args[0];
-        println!("Usage: {} FILE_TO_SEND OUTPUT_FOLDER", binary_name);
-        process::exit(1);
-    }
-    let input_filename = &args[1];
-    let output_folder = &args[2];
+    let input_filename = args.input_file;
     let mut file = match fs::File::open(input_filename) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
     };
 
     // Ensure output folder exists
-    fs::create_dir_all(output_folder).expect("Could not create/check output folder");
-    let output_path = Path::new(output_folder);
+    fs::create_dir_all(&args.output_directory).expect("Could not create/check output folder");
+    let output_path = args.output_directory.join("input_b64.txt");
     // Create a base64 version of our file
     let mut base64_file = match fs::File::create(output_path.join("input_b64.txt")) {
         Ok(f) => f,
@@ -63,18 +70,17 @@ fn main() {
         .sync_all()
         .expect("Error syncing base64 file to disks");
 
-    // let base64_filesize_bytes = base64_file
-    //     .stream_len()
-    //     .expect("Error checking base64 filesize");
+    let base64_filesize_bytes = base64_file
+        .stream_len()
+        .expect("Error checking base64 filesize");
 
-    // let chunk_reader;
-    // let chunk_read;
-    // {
-    //     chunk_reader = BufReader::with_capacity(1024, base64_file);
+    let mut chunk_reader;
+    let chunk_read;
+    {
+        chunk_reader = BufReader::with_capacity(1024, base64_file);
 
-    //     chunk_read = chunk_reader
-    //         .fill_buf()
-    //         .expect("Error reading chunk off base64 file");
-    // }
-    // println!("Read {:?} bytes: {:?}", chunk_read, chunk_reader);
+        chunk_read = chunk_reader
+            .fill_buf()
+            .expect("Error reading chunk off base64 file");
+    }
 }
