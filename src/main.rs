@@ -1,5 +1,6 @@
 #![feature(seek_stream_len)]
 #![warn(clippy::pedantic)]
+#![deny(missing_docs, missing_debug_implementations, clippy::all)]
 
 use std::io::Read;
 use std::io::Write;
