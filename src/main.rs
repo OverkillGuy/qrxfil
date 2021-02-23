@@ -19,7 +19,7 @@ fn main() {
     }
     let input_filename = &args[1];
     let output_folder = &args[2];
-    let mut file = match fs::File::open(input_filename) {
+    let mut input_file = match fs::File::open(input_filename) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
     };
@@ -37,7 +37,8 @@ fn main() {
     {
         // Separate scope to drop the encoder
         let mut raw_data_buffer = Vec::<u8>::new();
-        file.read_to_end(&mut raw_data_buffer)
+        input_file
+            .read_to_end(&mut raw_data_buffer)
             .expect("Error reading input file");
 
         // Write base64 version of what we read
@@ -52,29 +53,40 @@ fn main() {
     let base64_filesize_bytes = base64_file
         .seek(SeekFrom::End(0))
         .expect("Error checking base64 filesize");
-    println!("File size: {}", base64_filesize_bytes);
-
-    // rewind to the start of base64 encoded file to fan-out into chunks
-    base64_file
-        .seek(SeekFrom::Start(0))
-        .expect("Error rewinding base64 file before chunking");
+    println!("File size: {} bytes", base64_filesize_bytes);
 
     base64_file
-        .sync_all()
-        .expect("Error syncing base64 file to disks");
+        .sync_data()
+        .expect("Error syncing base64 file to disk");
 
-    // let base64_filesize_bytes = base64_file
-    //     .stream_len()
-    //     .expect("Error checking base64 filesize");
+    let mut base64_file = fs::File::open(output_path.join("input_b64.txt"))
+        .expect("Error reopening the base64 file to chunk");
 
-    // let chunk_reader;
-    // let chunk_read;
-    // {
-    //     chunk_reader = BufReader::with_capacity(1024, base64_file);
+    let chunk_size = 1024; // 1 KB
+    let mut chunk_count = 1;
+    loop {
+        let mut chunk = Vec::with_capacity(chunk_size);
+        let n = std::io::Read::by_ref(&mut base64_file)
+            .take(chunk_size as u64)
+            .read_to_end(&mut chunk)
+            .expect("Error reading chunk off file");
+        if n == 0 {
+            break;
+        }
 
-    //     chunk_read = chunk_reader
-    //         .fill_buf()
-    //         .expect("Error reading chunk off base64 file");
-    // }
-    // println!("Read {:?} bytes: {:?}", chunk_read, chunk_reader);
+        if n < chunk_size {
+            println!(
+                "Split file in {} chunk files in {:?}",
+                chunk_count, output_path
+            );
+        }
+
+        let mut out_file = fs::File::create(output_path.join(format!("{}.txt", chunk_count)))
+            .expect("Error creating chunk file");
+
+        out_file
+            .write_all(&chunk)
+            .expect("Error writing out file chunk");
+        chunk_count += 1;
+    }
 }

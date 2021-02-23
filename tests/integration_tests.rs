@@ -37,7 +37,7 @@ fn file_to_qr_happy() {
     );
     // And a base64 version of input file is present
     output_folder
-        .child("input_b64.txt")
+        .child("1.txt")
         .assert(predicate::path::is_file());
 
     // clean up the temp folder
