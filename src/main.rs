@@ -53,7 +53,6 @@ fn main() {
     let base64_filesize_bytes = base64_file
         .seek(SeekFrom::End(0))
         .expect("Error checking base64 filesize");
-    println!("File size: {} bytes", base64_filesize_bytes);
 
     base64_file
         .sync_data()
@@ -62,7 +61,13 @@ fn main() {
     let mut base64_file = fs::File::open(output_path.join("input_b64.txt"))
         .expect("Error reopening the base64 file to chunk");
 
-    let chunk_size = 1024; // 1 KB
+    let chunk_size: usize = 1024; // 1 KB
+
+    let chunk_totals = (base64_filesize_bytes as f64 / (chunk_size as f64)).ceil(); // round UP on f64 division
+    println!(
+        "File size: {} bytes = {} chunks of 1KB",
+        base64_filesize_bytes, chunk_totals
+    );
     let mut chunk_count = 1;
     loop {
         let mut chunk = Vec::with_capacity(chunk_size);
@@ -73,6 +78,7 @@ fn main() {
         if n == 0 {
             break;
         }
+        let chunk_header = format!("{:02}OF{:02}", chunk_count, chunk_totals);
 
         if n < chunk_size {
             println!(
@@ -84,6 +90,9 @@ fn main() {
         let mut out_file = fs::File::create(output_path.join(format!("{}.txt", chunk_count)))
             .expect("Error creating chunk file");
 
+        out_file
+            .write(chunk_header.as_bytes())
+            .expect("Error writing out file chunk header");
         out_file
             .write_all(&chunk)
             .expect("Error writing out file chunk");
