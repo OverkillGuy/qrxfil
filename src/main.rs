@@ -1,13 +1,16 @@
+use image::Luma;
+use qrcode::QrCode;
 use std::env;
 use std::fs;
 use std::io::Read;
 use std::io::Write;
-// use std::io::{BufRead, BufReader};
 use std::io::{Seek, SeekFrom};
 use std::path::Path;
 use std::process;
 
 extern crate base64;
+extern crate image;
+extern crate qrcode;
 
 fn main() {
     // Check arguments for file to open
@@ -70,15 +73,17 @@ fn main() {
     );
     let mut chunk_count = 1;
     loop {
+        let chunk_header = format!("{:02}OF{:02}", chunk_count, chunk_totals);
         let mut chunk = Vec::with_capacity(chunk_size);
+        // chunk.push(chunk_header.as_bytes()); // FIXME write prefix to buffer
+
         let n = std::io::Read::by_ref(&mut base64_file)
-            .take(chunk_size as u64)
+            .take((chunk_size - chunk_header.len()) as u64)
             .read_to_end(&mut chunk)
             .expect("Error reading chunk off file");
         if n == 0 {
             break;
         }
-        let chunk_header = format!("{:02}OF{:02}", chunk_count, chunk_totals);
 
         if n < chunk_size {
             println!(
@@ -87,15 +92,25 @@ fn main() {
             );
         }
 
-        let mut out_file = fs::File::create(output_path.join(format!("{}.txt", chunk_count)))
-            .expect("Error creating chunk file");
+        // Encode some data into bits.
+        let code = QrCode::new(&chunk).expect("Error encoding chunk into QR code");
 
-        out_file
-            .write(chunk_header.as_bytes())
-            .expect("Error writing out file chunk header");
-        out_file
-            .write_all(&chunk)
-            .expect("Error writing out file chunk");
+        // Render the bits into an image.
+        let image = code.render::<Luma<u8>>().build();
+
+        // Save the image.
+        image
+            .save(output_path.join(format!("{}.png", chunk_count)))
+            .expect("Error saving chunk's QR code file");
+
+        // let mut out_file = fs::File::create())
+
+        // out_file
+        //     .write(chunk_header.as_bytes())
+        //     .expect("Error writing out file chunk header");
+        // out_file
+        //     .write_all(&chunk)
+        //     .expect("Error writing out file chunk");
         chunk_count += 1;
     }
 }

@@ -35,9 +35,9 @@ fn file_to_qr_happy() {
         0,
         "Should have found files inside output directory"
     );
-    // And a base64 version of input file is present
+    // And the first chunk is created as qr code
     output_folder
-        .child("1.txt")
+        .child("1.png")
         .assert(predicate::path::is_file());
 
     // clean up the temp folder
