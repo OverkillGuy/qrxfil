@@ -68,28 +68,25 @@ fn main() {
 
     let chunk_totals = (base64_filesize_bytes as f64 / (chunk_size as f64)).ceil(); // round UP on f64 division
     println!(
-        "File size: {} bytes = {} chunks of 1KB",
-        base64_filesize_bytes, chunk_totals
+        "File {}. base64 size: {} bytes = {} chunks of 1KB",
+        input_filename, base64_filesize_bytes, chunk_totals
     );
     let mut chunk_count = 1;
+    let header_size = format!("{:02}OF{:02}", 1, 10).len();
+    let expected_chunk_bytes_read = chunk_size - header_size;
     loop {
-        let chunk_header = format!("{:02}OF{:02}", chunk_count, chunk_totals);
-        let mut chunk = Vec::with_capacity(chunk_size);
-        // chunk.push(chunk_header.as_bytes()); // FIXME write prefix to buffer
+        let mut chunk_header: Vec<u8> =
+            format!("{:02}OF{:02}", chunk_count, chunk_totals).into_bytes();
 
-        let n = std::io::Read::by_ref(&mut base64_file)
-            .take((chunk_size - chunk_header.len()) as u64)
+        let mut chunk = Vec::<u8>::with_capacity(chunk_size);
+        chunk.append(&mut chunk_header); // FIXME write prefix to buffer
+
+        let bytes_read_chunk = std::io::Read::by_ref(&mut base64_file)
+            .take(expected_chunk_bytes_read as u64)
             .read_to_end(&mut chunk)
             .expect("Error reading chunk off file");
-        if n == 0 {
+        if bytes_read_chunk == 0 {
             break;
-        }
-
-        if n < chunk_size {
-            println!(
-                "Split file in {} chunk files in {:?}",
-                chunk_count, output_path
-            );
         }
 
         // Encode some data into bits.
@@ -103,6 +100,7 @@ fn main() {
             .save(output_path.join(format!("{}.png", chunk_count)))
             .expect("Error saving chunk's QR code file");
 
+        println!("Saved QR {}/{}", chunk_count, chunk_totals);
         // let mut out_file = fs::File::create())
 
         // out_file
@@ -113,4 +111,9 @@ fn main() {
         //     .expect("Error writing out file chunk");
         chunk_count += 1;
     }
+    println!(
+        "Split file in {} QR chunks, in folder {:?}",
+        chunk_count - 1,
+        output_path
+    );
 }
