@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/
+set -xeuo pipefail
+
+
+# Reconstruct a binary file split into QR codes with `qrexfil`
+
+### Parses BinaryEye's[1] CSV-with-semicolor DB export
+# [1]: https://github.com/markusfisch/BinaryEye on Android
+# For use with qrexrfil script or rust binary
+
+FILE="$1"
+
+
+## Split the CSV file into separate files per line=QR code
+# Skip first line, avoid non-QR (UPC-E etc are failed reads), remove
+# quotes of data, and only get the content of the QR code, no other
+# field. This part is highly specific to the CSV format of BinaryEye
+# app, to be genericized.
+
+awk -F';' 'NR>1 && $2 == "\"QR_CODE\"" { gsub("\"",""); print $3  > FILENAME "-" NR - 1 }' $FILE
+
+# Note that QR codes can be scanned out of order, so entry number is not relevant
+# We focus on the header (first few bytes of QR content) e.g. "013OF075"
+
+
+## Derive the total number of chunks
+
+# Since we do not know how many digits does the prefix take, we may
+# confuse prefix with actual data.
+
+
+
+# First, find how many character it takes before finding "OF" in
+# prefix of first file
+chunk_number=$(egrep -o "^[0-9]+OF" ${FILE}-1 | sed 's/OF//')
+number_digit_of_chunk_count=$(printf "%s" "$chunk_number" | wc -m)
+# Extract the total number of chunks (grabbing N characters after OF)
+total_chunks=$(egrep -o "^${chunk_number}OF[0-9]{${number_digit_of_chunk_count}}" ${FILE}-1 | sed "s/^${chunk_number}OF//")
+TOTAL_CHUNKS_NOZEROS=$((10#$total_chunks))
+
+echo "From peeking at '${FILE}-1', we expect $TOTAL_CHUNKS_NOZEROS chunks. This one was number ${chunk_number}"
+
+# Check there are indeed the right number of chunks
+chunk_file_count=$(find . -maxdepth 1 -type f -name "${FILE}-*" -print | wc -l)
+if [[ "$chunk_file_count" != "$TOTAL_CHUNKS_NOZEROS" ]];
+then
+    >&2 echo "Expected $total_chunks but found $chunk_file_count instead. Aborting."
+    exit 1
+fi
+
+# Rip header and base64decode each chunk
+for filename in ${FILE}-*
+do
+    # Check for header presence in raw decoded
+    header=$(egrep -o "^[0-9]+OF${total_chunks}" $filename)
+
+    # Remove prefix from file
+    perl -pe "s/^[0-9]+OF${total_chunks}//" $filename > "$header.$filename.bin"
+done
+
+# # Restore the file by concatenation
+# Sorts chunk files by chunk number, using null as record separator (GNU extensions)
+find . -maxdepth 1 -type f -name "*OF${total_chunks}*.bin" -print0 \
+   |  sort -zV \
+   | xargs -0 cat > ${FILE}.catted
+
+base64 -d ${FILE}.catted > "${FILE}.restored"
+restored_size=$(du -sh ${FILE}.restored)
+
+printf "Restored %d chunks into %s \n" $TOTAL_CHUNKS_NOZEROS "$restored_size"
+
+# Remove intermediary files
+for filename in ${FILE}-*
+do
+    rm -f *.${filename}.bin "$filename"
+done
+
+
+# Check the restored file is identical to original (if available)
+md5sum ../exfil_dir/exfil_gz ${FILE}.restored

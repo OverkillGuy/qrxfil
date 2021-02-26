@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+
+# http://redsymbol.net/articles/unofficial-bash-strict-mode/
+
+set -euo pipefail
+
+# Base64 encode a file, splits into KB chunks, QR encode with a header
+# like 01OF08, see opposite script: qrextract
+
+FILE="$1"
+
+# Max 999 chunks ~~ 1MB data exfil
+MAX_NUM_CHUNK_DIGITS=2
+
+FILE_B64="${FILE}.b64"
+
+# Encode binary to base64 to convert to ASCII-printable for QR
+base64 --wrap 0 $FILE >$FILE_B64
+
+FILE_B64_SPLIT="${FILE_B64}.split"
+MAX_BYTES_PER_QR="1024"
+
+
+# Split in 2K-byte chunks as QR codes can only store <4000
+# bytes (base64 bumps size ~40% and some margin)
+split --elide-empty-files \
+   --bytes $MAX_BYTES_PER_QR \
+   --suffix-length $MAX_NUM_CHUNK_DIGITS \
+   --numeric-suffixes=1 \
+   "${FILE_B64}" \
+   "${FILE_B64_SPLIT}"
+
+CHUNK_FILENAMES=$(find -type f -name "${FILE_B64_SPLIT}*")
+CHUNKS_COUNT=$(echo "$CHUNK_FILENAMES" | wc -l)
+CHUNKS_COUNT_ZEROES=$(printf "%0${MAX_NUM_CHUNK_DIGITS}d" $CHUNKS_COUNT)
+UPDATE_PROGRESS_EVERY_N_CHUNK=10
+
+echo "Split file in $CHUNKS_COUNT chunks"
+for chunk_file in ${FILE_B64_SPLIT}*
+do
+  chunk_number=$(echo "$chunk_file" | egrep -o ".split[0-9]{$MAX_NUM_CHUNK_DIGITS}$" | sed s/.split//g)
+
+  # Insert a prefix page number+pagecount: 0123OF0200 before QR conversion
+  # Avoid out of order scanning issues at reconstruction
+  prefix="${chunk_number}OF${CHUNKS_COUNT_ZEROES}"
+  # Progress message every N chunks
+  if [[ $(( 10#$chunk_number % $UPDATE_PROGRESS_EVERY_N_CHUNK )) == 0 ]];
+  then
+      printf "Generating QR for chunk %s/%s\n" $(( 10#$chunk_number)) "$CHUNKS_COUNT"
+  fi
+  sed -i "1s/^/$prefix/" ${chunk_file}
+  # Finally encode the resulting file with < 1024 bytes
+  qrencode -m 20 -t PNG -r "${chunk_file}"  -o "$chunk_file.png"
+  # Clean up intermediary file
+  rm -rf $chunk_file
+done
+
+# Clean up the base64 file too
+rm -f $FILE_B64
