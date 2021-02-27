@@ -1,3 +1,9 @@
+#![warn(clippy::pedantic)]
+#![deny(missing_debug_implementations, clippy::all)]
+
+// Disabled due to spurius E0753 when adding //!
+// #![deny(missing_docs)]
+
 use image::Luma;
 use qrcode::QrCode;
 use std::env;
