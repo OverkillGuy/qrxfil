@@ -19,13 +19,17 @@ fn file_to_qr_happy() {
         .write_binary(&random_chars)
         .expect("Could not write random to file for test seeding");
 
-    // When running qrxfil with input filename + output folder
+    // When running qrxfil in exfil-mode with input filename + output folder
     let mut cmd = Command::cargo_bin("qrxfil").expect("Error find qrxfil command");
     // Then exit code is zero for success
-    cmd.args(&[input_file.path(), output_folder.path()])
-        .assert()
-        .success();
-    // Then a folder is created
+    let args = [
+        "exfil",
+        input_file.path().to_str().unwrap(),
+        output_folder.path().to_str().unwrap(),
+    ];
+    println!("{} {} {}", &args[0], &args[1], &args[2]);
+    cmd.args(&args).assert().success();
+    // Then a folder is created/1
     output_folder.assert(predicate::path::is_dir());
     // And folder contains files
     let output_files =
@@ -37,7 +41,7 @@ fn file_to_qr_happy() {
     );
     // And the first chunk is created as qr code
     output_folder
-        .child("1.png")
+        .child("01.png")
         .assert(predicate::path::is_file());
 
     // clean up the temp folder

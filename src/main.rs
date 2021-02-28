@@ -1,33 +1,52 @@
 #![warn(clippy::pedantic)]
 #![deny(missing_debug_implementations, clippy::all)]
-
 // Disabled due to spurius E0753 when adding //!
 // #![deny(missing_docs)]
 
+use clap::{App, Arg, SubCommand};
 use image::Luma;
 use qrcode::QrCode;
-use std::env;
 use std::fs;
 use std::io::Read;
 use std::io::Write;
 use std::io::{Seek, SeekFrom};
 use std::path::Path;
-use std::process;
-
 extern crate base64;
+extern crate clap;
 extern crate image;
 extern crate qrcode;
 
 fn main() {
-    // Check arguments for file to open
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 3 {
-        let binary_name = &args[0];
-        println!("Usage: {} FILE_TO_SEND OUTPUT_FOLDER", binary_name);
-        process::exit(1);
-    }
-    let input_filename = &args[1];
-    let output_folder = &args[2];
+    let matches = App::new("qrxfil")
+        .version("0.1")
+        .about("Transfer/backup files as a sequence of QR codes")
+        .author("Jb DOYON") // And authors
+        .subcommand(
+            SubCommand::with_name("exfil")
+                .about("Generates QR code sequence from file")
+                .arg(
+                    Arg::with_name("input") // And their own arguments
+                        .help("The input file to split into QR codes")
+                        .index(1)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("output_folder")
+                        .help("The output folder to generate codes into")
+                        .index(2)
+                        .required(true),
+                ),
+        )
+        .get_matches();
+
+    // You can check if a subcommand was used like normal
+    let matches_exfil = match matches.subcommand_matches("exfil") {
+        Some(i) => i,
+        None => panic!("Exfil alone is implemented"),
+    };
+
+    let input_filename = matches_exfil.value_of("input").unwrap();
+    let output_folder = matches_exfil.value_of("output_folder").unwrap();
     let mut input_file = match fs::File::open(input_filename) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
@@ -103,10 +122,10 @@ fn main() {
 
         // Save the image.
         image
-            .save(output_path.join(format!("{}.png", chunk_count)))
+            .save(output_path.join(format!("{:02}.png", chunk_count)))
             .expect("Error saving chunk's QR code file");
 
-        println!("Saved QR {}/{}", chunk_count, chunk_totals);
+        println!("Saved QR {:02}/{}", chunk_count, chunk_totals);
         // let mut out_file = fs::File::create())
 
         // out_file
