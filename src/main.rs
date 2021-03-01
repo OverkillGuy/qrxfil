@@ -1,7 +1,8 @@
+//! These are module-level docs
+
 #![warn(clippy::pedantic)]
 #![deny(missing_debug_implementations, clippy::all)]
-// Disabled due to spurius E0753 when adding //!
-// #![deny(missing_docs)]
+#![deny(missing_docs)]
 
 use clap::{App, Arg, SubCommand};
 use image::Luma;
@@ -91,6 +92,7 @@ fn main() {
 
     let chunk_size: usize = 1024; // 1 KB
 
+    #[allow(clippy::cast_precision_loss)]
     let chunk_totals = (base64_filesize_bytes as f64 / (chunk_size as f64)).ceil(); // round UP on f64 division
     println!(
         "File {}. base64 size: {} bytes = {} chunks of 1KB",
