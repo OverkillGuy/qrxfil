@@ -4,10 +4,9 @@
 #![deny(missing_debug_implementations, clippy::all)]
 #![deny(missing_docs)]
 
-use clap::{App, Arg, SubCommand};
 use image::Luma;
 use qrcode::QrCode;
-use std::fs;
+use std::{fs, io::BufReader, path::PathBuf};
 use std::io::Read;
 use std::io::Write;
 use std::io::{Seek, SeekFrom};
@@ -16,69 +15,62 @@ extern crate base64;
 extern crate clap;
 extern crate image;
 extern crate qrcode;
+use std::io;
+use std::fs::File;
 
-fn main() {
-    let matches = App::new("qrxfil")
-        .version("0.1")
-        .about("Transfer/backup files as a sequence of QR codes")
-        .author("Jb DOYON") // And authors
-        .subcommand(
-            SubCommand::with_name("exfil")
-                .about("Generates QR code sequence from file")
-                .arg(
-                    Arg::with_name("input") // And their own arguments
-                        .help("The input file to split into QR codes")
-                        .index(1)
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("output_folder")
-                        .help("The output folder to generate codes into")
-                        .index(2)
-                        .required(true),
-                ),
-        )
-        .get_matches();
+use clap::Clap;
 
-    // You can check if a subcommand was used like normal
-    let matches_exfil = match matches.subcommand_matches("exfil") {
-        Some(i) => i,
-        None => panic!("Exfil alone is implemented"),
-    };
+/// Transfer/backup files as a sequence of QR codes
+#[derive(Debug, Clap)]
+pub(crate) enum Command {
+    Exfil(Exfil)
+}
 
-    let input_filename = matches_exfil.value_of("input").unwrap();
-    let output_folder = matches_exfil.value_of("output_folder").unwrap();
-    let mut input_file = match fs::File::open(input_filename) {
-        Ok(f) => f,
-        Err(err) => panic!("File error: {}", err),
-    };
-
-    // Ensure output folder exists
-    fs::create_dir_all(output_folder).expect("Could not create/check output folder");
-    let output_path = Path::new(output_folder);
-    // Create a base64 version of our file
-    let mut base64_file = match fs::File::create(output_path.join("input_b64.txt")) {
-        Ok(f) => f,
-        Err(err) => panic!("File error: {}", err),
-    };
-
-    // Read the input file and write it out as base64
-    {
-        // Separate scope to drop the encoder
-        let mut raw_data_buffer = Vec::<u8>::new();
-        input_file
-            .read_to_end(&mut raw_data_buffer)
-            .expect("Error reading input file");
-
-        // Write base64 version of what we read
-        let mut base64_encoder =
-            base64::write::EncoderWriter::new(&mut base64_file, base64::STANDARD);
-
-        base64_encoder
-            .write_all(&raw_data_buffer)
-            .expect("Error writing base64 of input file");
+impl Command {
+    pub(crate) fn run(&self) -> io::Result<()> {
+        match self {
+            Self::Exfil(exfil) => exfil.run()
+        }
     }
-    // Measure file length from where we are at the end
+}
+
+/// Generates QR code sequence from file
+#[derive(Debug, Clap)]
+pub(crate) struct Exfil {
+    /// The input file to split into QR codes
+    input: PathBuf,
+
+    /// The output folder to generate codes into
+    output_folder: PathBuf,
+}
+
+impl Exfil {
+    pub(crate) fn run(&self) -> io::Result<()> {
+        // ensure the output folder exists
+        fs::create_dir_all(&self.output_folder)?;
+
+        // read the input file
+        let mut input = BufReader::new(File::open(&self.input)?);
+
+        // create a base64 encoded output file
+        let base64_file = File::create(self.output_folder.join("input_b64.txt"))?;
+        let mut base64_encoder = base64::write::EncoderWriter::new(base64_file, base64::STANDARD);
+
+        // copy everything from the input file to the base64 file
+        std::io::copy(&mut input, &mut base64_encoder)?;
+
+        // .... and so on
+
+        Ok(())
+    }
+}
+
+fn main() -> io::Result<()>{
+    let command = Command::parse();
+    command.run()
+}
+
+/*     // Measure file length from where we are at the end
     let base64_filesize_bytes = base64_file
         .seek(SeekFrom::End(0))
         .expect("Error checking base64 filesize");
@@ -144,3 +136,4 @@ fn main() {
         output_path
     );
 }
+ */
