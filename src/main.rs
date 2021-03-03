@@ -1,4 +1,12 @@
-//! These are module-level docs
+//! # qrxfil - Use QR codes for file exfiltration
+//!
+//! Use QR codes to "send" files as a sequence of QR codes, to scan on
+//! another system, bypassing air-gap systems.
+//!
+//! Encodes the given file to base64, then generates a sequence of QR
+//! code PNG images in target folder containing the split data. QR
+//! code "chunks" contain ~1KB of encoded payload, prefixed with a
+//! chunk number such as 070OF076, much like page numbers of a book.
 
 #![warn(clippy::pedantic)]
 #![deny(missing_debug_implementations, clippy::all)]
@@ -17,6 +25,10 @@ extern crate clap;
 extern crate image;
 extern crate qrcode;
 
+/// Encodes `input_file` with qrxfil into QR files inside `output_folder`
+///
+/// `output_folder` (and parent directories) will be created if
+/// doesn't exist
 fn encode(input_file: PathBuf, output_folder: PathBuf) {
     let mut input_file = match fs::File::open(input_file) {
         Ok(f) => f,
