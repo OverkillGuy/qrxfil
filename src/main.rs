@@ -126,6 +126,13 @@ fn encode(input_file: PathBuf, output_folder: PathBuf) {
     );
 }
 
+/// Decodes QR strings found in `input_file` (newline-separated) with
+/// qrxfil to restore file to `restored_file`
+///
+fn decode(input_file: PathBuf, restored_file: PathBuf) {
+    println!("{:?}, {:?}", input_file, restored_file);
+}
+
 fn main() {
     let matches = App::new("qrxfil")
         .version("0.1")
@@ -147,19 +154,47 @@ fn main() {
                         .required(true),
                 ),
         )
+	.subcommand(
+	                SubCommand::with_name("restore")
+                .about("Decodes encoded strings back into file")
+                .arg(
+                    Arg::with_name("encoded_input") // And their own arguments
+                        .help("The input file with newline-delimited QR strings")
+                        .index(1)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("output_file")
+                        .help("The output file to restore into")
+                        .index(2)
+                        .required(true),
+                ),
+
+	)
         .get_matches();
 
-    // You can check if a subcommand was used like normal
-    let matches_exfil = match matches.subcommand_matches("exfil") {
-        Some(i) => i,
-        None => panic!("Exfil alone is implemented"),
-    };
+    // // You can check if a subcommand was used like normal
+    // let matches_exfil = match matches.subcommand_matches("exfil") {
+    //     Some(i) => i,
+    //     None => panic!("Exfil alone is implemented"),
+    // };
 
-    let input_filename = matches_exfil.value_of("input").unwrap();
-    let output_folder = matches_exfil.value_of("output_folder").unwrap();
+    if let Some(matches_exfil) = matches.subcommand_matches("exfil") {
+        let input_filename = matches_exfil.value_of("input").unwrap();
+        let output_folder = matches_exfil.value_of("output_folder").unwrap();
 
-    encode(
-        Path::new(input_filename).to_path_buf(),
-        Path::new(output_folder).to_path_buf(),
-    );
+        encode(
+            Path::new(input_filename).to_path_buf(),
+            Path::new(output_folder).to_path_buf(),
+        );
+    }
+    if let Some(matches_restore) = matches.subcommand_matches("restore") {
+        let encoded_input_filename = matches_restore.value_of("encoded_input").unwrap();
+        let output_file = matches_restore.value_of("output_file").unwrap();
+
+        decode(
+            Path::new(encoded_input_filename).to_path_buf(),
+            Path::new(output_file).to_path_buf(),
+        );
+    }
 }

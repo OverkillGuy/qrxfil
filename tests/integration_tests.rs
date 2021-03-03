@@ -47,3 +47,28 @@ fn file_to_qr_happy() {
     // clean up the temp folder
     temp.close().expect("Error deleting temporary folder");
 }
+
+#[test]
+fn qr_folder_restore_happy() {
+    // Given a file with qrxfil encoded strings
+    let temp = assert_fs::TempDir::new().unwrap();
+    let encoded_filename = "encoded_data.txt";
+    temp.copy_from(".", &[encoded_filename]).unwrap();
+    let encoded_file = temp.child(encoded_filename);
+    let decoded_file = temp.child("decode_output.txt");
+
+    // When running qrxfil in decode-mode with input folder + restore file
+    let mut cmd = Command::cargo_bin("qrxfil").expect("Error find qrxfil command");
+    // Then exit code is zero for success
+    let args = [
+        "restore",
+        encoded_file.path().to_str().unwrap(),
+        decoded_file.path().to_str().unwrap(),
+    ];
+    println!("{} {} {}", &args[0], &args[1], &args[2]);
+    cmd.args(&args).assert().success();
+    // Then a decoded file is created
+    decoded_file.assert(predicate::path::is_file());
+    // clean up the temp folder
+    temp.close().expect("Error deleting temporary folder");
+}
