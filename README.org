@@ -23,7 +23,7 @@ None of the features announced are currently implemented
 
 * Development
 
-Using =cargo=, build the binary
+Because =rust=, use =cargo= to build the binary
 
 #+begin_src shell
 cargo build
@@ -34,3 +34,5 @@ Run tests:
 #+begin_src shell
 cargo test
 #+end_src
+
+This project uses [[https://pre-commit.com/][pre-commit]].
