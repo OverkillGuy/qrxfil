@@ -25,6 +25,8 @@ extern crate clap;
 extern crate image;
 extern crate qrcode;
 
+mod parser;
+
 /// Encodes `input_file` with qrxfil into QR files inside `output_folder`
 ///
 /// `output_folder` (and parent directories) will be created if
@@ -196,5 +198,7 @@ fn main() {
             Path::new(encoded_input_filename).to_path_buf(),
             Path::new(output_file).to_path_buf(),
         );
+        // TODO use parser really (currently called to avoid dead code warn
+        parser::parse(encoded_input_filename);
     }
 }
