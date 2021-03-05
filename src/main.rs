@@ -199,6 +199,9 @@ fn main() {
             Path::new(output_file).to_path_buf(),
         );
         // TODO use parser really (currently called to avoid dead code warn
-        parser::parse(encoded_input_filename);
+        let _parsed = match parser::parse(encoded_input_filename) {
+            Ok(i) => i,
+            Err(e) => panic!(e),
+        };
     }
 }
