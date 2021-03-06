@@ -19,7 +19,7 @@ use std::fs;
 use std::io::Read;
 use std::io::Write;
 use std::io::{Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 extern crate base64;
 extern crate clap;
 extern crate image;
@@ -31,16 +31,16 @@ mod parser;
 ///
 /// `output_folder` (and parent directories) will be created if
 /// doesn't exist
-fn encode(input_file: PathBuf, output_folder: PathBuf) {
+fn encode(input_file: &Path, output_folder: &Path) {
     let mut input_file = match fs::File::open(input_file) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
     };
 
     // Ensure output folder exists
-    fs::create_dir_all(output_folder.as_path()).expect("Could not create/check output folder");
+    fs::create_dir_all(output_folder).expect("Could not create/check output folder");
     // Create a base64 version of our file
-    let mut base64_file = match fs::File::create(output_folder.as_path().join("input_b64.txt")) {
+    let mut base64_file = match fs::File::create(output_folder.join("input_b64.txt")) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
     };
@@ -131,7 +131,7 @@ fn encode(input_file: PathBuf, output_folder: PathBuf) {
 /// Decodes QR strings found in `input_file` (newline-separated) with
 /// qrxfil to restore file to `restored_file`
 ///
-fn decode(input_file: PathBuf, restored_file: PathBuf) {
+fn decode(input_file: &Path, restored_file: &Path) {
     println!("{:?}, {:?}", input_file, restored_file);
 }
 
@@ -185,23 +185,17 @@ fn main() {
         let input_filename = matches_exfil.value_of("input").unwrap();
         let output_folder = matches_exfil.value_of("output_folder").unwrap();
 
-        encode(
-            Path::new(input_filename).to_path_buf(),
-            Path::new(output_folder).to_path_buf(),
-        );
+        encode(Path::new(input_filename), Path::new(output_folder));
     }
     if let Some(matches_restore) = matches.subcommand_matches("restore") {
         let encoded_input_filename = matches_restore.value_of("encoded_input").unwrap();
         let output_file = matches_restore.value_of("output_file").unwrap();
 
-        decode(
-            Path::new(encoded_input_filename).to_path_buf(),
-            Path::new(output_file).to_path_buf(),
-        );
+        decode(Path::new(encoded_input_filename), Path::new(output_file));
         // TODO use parser really (currently called to avoid dead code warn
         let _parsed = match parser::parse(encoded_input_filename) {
             Ok(i) => i,
-            Err(e) => panic!(e),
+            Err(e) => panic!("{:#?}", e),
         };
     }
 }
