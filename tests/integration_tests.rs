@@ -53,7 +53,7 @@ fn qr_folder_restore_happy() {
     // Given a file with qrxfil encoded strings
     let temp = assert_fs::TempDir::new().unwrap();
     let encoded_filename = "encoded_data.txt";
-    temp.copy_from(".", &[encoded_filename]).unwrap();
+    temp.copy_from("./tests/", &["*.txt"]).unwrap();
     let encoded_file = temp.child(encoded_filename);
     let decoded_file = temp.child("decode_output.txt");
 
@@ -65,7 +65,7 @@ fn qr_folder_restore_happy() {
         encoded_file.path().to_str().unwrap(),
         decoded_file.path().to_str().unwrap(),
     ];
-    println!("{} {} {}", &args[0], &args[1], &args[2]);
+    // println!("{} {} {}", &args[0], &args[1], &args[2]);
     cmd.args(&args).assert().success();
     // Then a decoded file is created
     decoded_file.assert(predicate::path::is_file());

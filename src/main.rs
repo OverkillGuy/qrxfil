@@ -16,8 +16,8 @@ use clap::{App, Arg, SubCommand};
 use image::Luma;
 use qrcode::QrCode;
 use std::fs;
-use std::io::Read;
 use std::io::Write;
+use std::io::{BufRead, BufReader, Read};
 use std::io::{Seek, SeekFrom};
 use std::path::Path;
 extern crate base64;
@@ -128,11 +128,37 @@ fn encode(input_file: &Path, output_folder: &Path) {
     );
 }
 
-/// Decodes QR strings found in `input_file` (newline-separated) with
+/// Decodes QR strings found in `input_path` (newline-separated) with
 /// qrxfil to restore file to `restored_file`
 ///
-fn decode(input_file: &Path, restored_file: &Path) {
-    println!("{:?}, {:?}", input_file, restored_file);
+fn decode(input_path: &Path, restored_path: &Path) {
+    let input_file = match fs::File::open(input_path) {
+        Ok(f) => f,
+        Err(err) => panic!("File error on opening decode input: {}", err),
+    };
+
+    let reader = BufReader::new(input_file);
+
+    let chunks: Vec<parser::EncodedChunk> = reader
+        .lines()
+        .map(|l| parser::parse(&l.unwrap()).expect("Invalid chunk read"))
+        .collect();
+
+    // TODO re-sort the chunks if needed
+
+    let mut restored_file = match fs::File::create(restored_path) {
+        Ok(f) => f,
+        Err(err) => panic!("File error creating restored file: {}", err),
+    };
+    for chunk in chunks {
+        println!("{}/{}", chunk.id, chunk.total);
+        let decoded_chunk_bytes =
+            base64::decode(chunk.payload).expect("Error base64 decoding chunk");
+        restored_file
+            .write_all(&decoded_chunk_bytes)
+            .expect("Error writing out restored file chunk");
+    }
+    // panic!("Noooo");
 }
 
 fn main() {
@@ -192,10 +218,5 @@ fn main() {
         let output_file = matches_restore.value_of("output_file").unwrap();
 
         decode(Path::new(encoded_input_filename), Path::new(output_file));
-        // TODO use parser really (currently called to avoid dead code warn
-        let _parsed = match parser::parse(encoded_input_filename) {
-            Ok(i) => i,
-            Err(e) => panic!("{:#?}", e),
-        };
     }
 }

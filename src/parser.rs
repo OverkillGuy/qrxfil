@@ -5,9 +5,9 @@
 #[derive(Debug, PartialEq, Eq)]
 /// A chunk that's already encoded, with base64 payload
 pub struct EncodedChunk {
-    id: u16,
-    total: u16,
-    payload: String,
+    pub id: u16,
+    pub total: u16,
+    pub payload: String,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -23,6 +23,13 @@ pub enum ChunkParseError {
 ///
 /// This enables sorting all chunks by id for reassembly
 /// Chunk format: 003OF008andthenbase64payloadhere
+///
+/// Ordered as:
+/// - chunk ID: 3 chars forming a u16
+/// - "OF": hardcoded string used as separator/magic string (offset 3)
+/// - chunk total: 3 chars forming a u16 for how many chunks exist
+/// - payload: base64 encoded string payload of the chunk
+
 pub fn parse(chunk: &str) -> Result<EncodedChunk, ChunkParseError> {
     let chunk_id = chunk[..3]
         .parse::<u16>()
@@ -54,7 +61,7 @@ mod chunk_tests {
     fn decode_ok_test() {
         let expected = Ok::<EncodedChunk, ChunkParseError>(EncodedChunk {
             id: 1,
-            total: 2, // TODO Flesh out testing
+            total: 2,
             payload: "abcdef".to_string(),
         });
         assert_eq!(parse("001OF002abcdef"), expected);
