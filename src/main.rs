@@ -24,6 +24,7 @@ extern crate base64;
 extern crate clap;
 extern crate image;
 extern crate qrcode;
+use anyhow::Context;
 
 mod parser;
 
@@ -31,19 +32,14 @@ mod parser;
 ///
 /// `output_folder` (and parent directories) will be created if
 /// doesn't exist
-fn encode(input_file: &Path, output_folder: &Path) {
-    let mut input_file = match fs::File::open(input_file) {
-        Ok(f) => f,
-        Err(err) => panic!("File error: {}", err),
-    };
+fn encode(input_file: &Path, output_folder: &Path) -> anyhow::Result<()> {
+    let mut input_file = fs::File::open(input_file).context("file error")?;
 
     // Ensure output folder exists
-    fs::create_dir_all(output_folder).expect("Could not create/check output folder");
+    fs::create_dir_all(output_folder).context("Could not create/check output folder")?;
     // Create a base64 version of our file
-    let mut base64_file = match fs::File::create(output_folder.join("input_b64.txt")) {
-        Ok(f) => f,
-        Err(err) => panic!("File error: {}", err),
-    };
+    let mut base64_file =
+        fs::File::create(output_folder.join("input_b64.txt")).context("file error")?;
 
     // Read the input file and write it out as base64
     {
@@ -51,7 +47,7 @@ fn encode(input_file: &Path, output_folder: &Path) {
         let mut raw_data_buffer = Vec::<u8>::new();
         input_file
             .read_to_end(&mut raw_data_buffer)
-            .expect("Error reading input file");
+            .context("Error reading input file")?;
 
         // Write base64 version of what we read
         let mut base64_encoder =
@@ -59,19 +55,19 @@ fn encode(input_file: &Path, output_folder: &Path) {
 
         base64_encoder
             .write_all(&raw_data_buffer)
-            .expect("Error writing base64 of input file");
+            .context("Error writing base64 of input file")?;
     }
     // Measure file length from where we are at the end
     let base64_filesize_bytes = base64_file
         .seek(SeekFrom::End(0))
-        .expect("Error checking base64 filesize");
+        .context("Error checking base64 filesize")?;
 
     base64_file
         .sync_data()
-        .expect("Error syncing base64 file to disk");
+        .context("Error syncing base64 file to disk")?;
 
     let mut base64_file = fs::File::open(output_folder.join("input_b64.txt"))
-        .expect("Error reopening the base64 file to chunk");
+        .context("Error reopening the base64 file to chunk")?;
 
     let chunk_size: usize = 1024; // 1 KB
 
@@ -94,13 +90,13 @@ fn encode(input_file: &Path, output_folder: &Path) {
         let bytes_read_chunk = std::io::Read::by_ref(&mut base64_file)
             .take(expected_chunk_bytes_read as u64)
             .read_to_end(&mut chunk)
-            .expect("Error reading chunk off file");
+            .context("Error reading chunk off file")?;
         if bytes_read_chunk == 0 {
             break;
         }
 
         // Encode some data into bits.
-        let code = QrCode::new(&chunk).expect("Error encoding chunk into QR code");
+        let code = QrCode::new(&chunk).context("Error encoding chunk into QR code")?;
 
         // Render the bits into an image.
         let image = code.render::<Luma<u8>>().build();
@@ -108,7 +104,7 @@ fn encode(input_file: &Path, output_folder: &Path) {
         // Save the image.
         image
             .save(output_folder.join(format!("{:02}.png", chunk_count)))
-            .expect("Error saving chunk's QR code file");
+            .context("Error saving chunk's QR code file")?;
 
         println!("Saved QR {:02}/{}", chunk_count, chunk_totals);
         // let mut out_file = fs::File::create())
@@ -126,6 +122,8 @@ fn encode(input_file: &Path, output_folder: &Path) {
         chunk_count - 1,
         output_folder
     );
+
+    Ok(())
 }
 
 /// Decodes QR strings found in `input_file` (newline-separated) with
@@ -135,7 +133,7 @@ fn decode(input_file: &Path, restored_file: &Path) {
     println!("{:?}, {:?}", input_file, restored_file);
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let matches = App::new("qrxfil")
         .version("0.1")
         .about("Transfer/backup files as a sequence of QR codes")
@@ -185,7 +183,7 @@ fn main() {
         let input_filename = matches_exfil.value_of("input").unwrap();
         let output_folder = matches_exfil.value_of("output_folder").unwrap();
 
-        encode(Path::new(input_filename), Path::new(output_folder));
+        encode(Path::new(input_filename), Path::new(output_folder))?;
     }
     if let Some(matches_restore) = matches.subcommand_matches("restore") {
         let encoded_input_filename = matches_restore.value_of("encoded_input").unwrap();
@@ -198,4 +196,6 @@ fn main() {
             Err(e) => panic!("{:#?}", e),
         };
     }
+
+    Ok(())
 }
