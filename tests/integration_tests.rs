@@ -69,6 +69,15 @@ fn qr_folder_restore_happy() {
     cmd.args(&args).assert().success();
     // Then a decoded file is created
     decoded_file.assert(predicate::path::is_file());
+    // And decoded file matches md5 of original
+    Command::new("md5sum")
+	.current_dir(temp.path())
+        .args(&[
+	    "decode_output.txt",
+            "reference_file.txt",
+        ])
+	.assert()
+	.stdout(predicate::eq("379abac9ff01fe015da6d1fd033ae9f3  decode_output.txt\n379abac9ff01fe015da6d1fd033ae9f3  reference_file.txt\n"));
     // clean up the temp folder
     temp.close().expect("Error deleting temporary folder");
 }
