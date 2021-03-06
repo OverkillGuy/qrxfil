@@ -24,18 +24,16 @@ pub enum ChunkParseError {
 /// This enables sorting all chunks by id for reassembly
 /// Chunk format: 003OF008andthenbase64payloadhere
 pub fn parse(chunk: &str) -> Result<EncodedChunk, ChunkParseError> {
-    let chunk_id = match chunk[..3].parse::<u16>() {
-        Ok(i) => i,
-        Err(_) => return Err(ChunkParseError::IdMissing),
-    };
-    if chunk[3..5] != String::from("OF") {
+    let chunk_id = chunk[..3]
+        .parse::<u16>()
+        .map_err(|_| ChunkParseError::IdMissing)?;
+    if chunk[3..5] != *"OF" {
         return Err(ChunkParseError::BadSeparator);
     }
 
-    let chunk_total = match chunk[5..8].parse::<u16>() {
-        Ok(i) => i,
-        Err(_) => return Err(ChunkParseError::TotalMissing),
-    };
+    let chunk_total = chunk[5..8]
+        .parse::<u16>()
+        .map_err(|_| ChunkParseError::TotalMissing)?;
 
     if chunk[8..].is_empty() {
         return Err(ChunkParseError::PayloadMissing);
