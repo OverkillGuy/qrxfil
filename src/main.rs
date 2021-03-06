@@ -16,29 +16,31 @@ use clap::{App, Arg, SubCommand};
 use image::Luma;
 use qrcode::QrCode;
 use std::fs;
-use std::io::Read;
 use std::io::Write;
+use std::io::{BufRead, BufReader, Read};
 use std::io::{Seek, SeekFrom};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 extern crate base64;
 extern crate clap;
 extern crate image;
 extern crate qrcode;
 
+mod parser;
+
 /// Encodes `input_file` with qrxfil into QR files inside `output_folder`
 ///
 /// `output_folder` (and parent directories) will be created if
 /// doesn't exist
-fn encode(input_file: PathBuf, output_folder: PathBuf) {
+fn encode(input_file: &Path, output_folder: &Path) {
     let mut input_file = match fs::File::open(input_file) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
     };
 
     // Ensure output folder exists
-    fs::create_dir_all(output_folder.as_path()).expect("Could not create/check output folder");
+    fs::create_dir_all(output_folder).expect("Could not create/check output folder");
     // Create a base64 version of our file
-    let mut base64_file = match fs::File::create(output_folder.as_path().join("input_b64.txt")) {
+    let mut base64_file = match fs::File::create(output_folder.join("input_b64.txt")) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
     };
@@ -126,6 +128,39 @@ fn encode(input_file: PathBuf, output_folder: PathBuf) {
     );
 }
 
+/// Decodes QR strings found in `input_path` (newline-separated) with
+/// qrxfil to restore file to `restored_file`
+///
+fn decode(input_path: &Path, restored_path: &Path) {
+    let input_file = match fs::File::open(input_path) {
+        Ok(f) => f,
+        Err(err) => panic!("File error on opening decode input: {}", err),
+    };
+
+    let reader = BufReader::new(input_file);
+
+    let chunks: Vec<parser::EncodedChunk> = reader
+        .lines()
+        .map(|l| parser::parse(&l.unwrap()).expect("Invalid chunk read"))
+        .collect();
+
+    // TODO re-sort the chunks if needed
+
+    let mut restored_file = match fs::File::create(restored_path) {
+        Ok(f) => f,
+        Err(err) => panic!("File error creating restored file: {}", err),
+    };
+    for chunk in chunks {
+        println!("{}/{}", chunk.id, chunk.total);
+        let decoded_chunk_bytes =
+            base64::decode(chunk.payload).expect("Error base64 decoding chunk");
+        restored_file
+            .write_all(&decoded_chunk_bytes)
+            .expect("Error writing out restored file chunk");
+    }
+    // panic!("Noooo");
+}
+
 fn main() {
     let matches = App::new("qrxfil")
         .version("0.1")
@@ -147,19 +182,41 @@ fn main() {
                         .required(true),
                 ),
         )
+	.subcommand(
+	                SubCommand::with_name("restore")
+                .about("Decodes encoded strings back into file")
+                .arg(
+                    Arg::with_name("encoded_input") // And their own arguments
+                        .help("The input file with newline-delimited QR strings")
+                        .index(1)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("output_file")
+                        .help("The output file to restore into")
+                        .index(2)
+                        .required(true),
+                ),
+
+	)
         .get_matches();
 
-    // You can check if a subcommand was used like normal
-    let matches_exfil = match matches.subcommand_matches("exfil") {
-        Some(i) => i,
-        None => panic!("Exfil alone is implemented"),
-    };
+    // // You can check if a subcommand was used like normal
+    // let matches_exfil = match matches.subcommand_matches("exfil") {
+    //     Some(i) => i,
+    //     None => panic!("Exfil alone is implemented"),
+    // };
 
-    let input_filename = matches_exfil.value_of("input").unwrap();
-    let output_folder = matches_exfil.value_of("output_folder").unwrap();
+    if let Some(matches_exfil) = matches.subcommand_matches("exfil") {
+        let input_filename = matches_exfil.value_of("input").unwrap();
+        let output_folder = matches_exfil.value_of("output_folder").unwrap();
 
-    encode(
-        Path::new(input_filename).to_path_buf(),
-        Path::new(output_folder).to_path_buf(),
-    );
+        encode(Path::new(input_filename), Path::new(output_folder));
+    }
+    if let Some(matches_restore) = matches.subcommand_matches("restore") {
+        let encoded_input_filename = matches_restore.value_of("encoded_input").unwrap();
+        let output_file = matches_restore.value_of("output_file").unwrap();
+
+        decode(Path::new(encoded_input_filename), Path::new(output_file));
+    }
 }
