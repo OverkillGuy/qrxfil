@@ -48,6 +48,7 @@ fn file_to_qr_happy() {
     temp.close().expect("Error deleting temporary folder");
 }
 
+// Scenario: qrxfil restore is md5-identical
 #[test]
 fn qr_folder_restore_happy() {
     // Given a file with qrxfil encoded strings
@@ -72,10 +73,10 @@ fn qr_folder_restore_happy() {
     // And decoded file matches md5 of original
     Command::new("md5sum")
 	.current_dir(temp.path())
-        .args(&[
+	.args(&[
 	    "decode_output.txt",
-            "reference_file.txt",
-        ])
+	    "reference_file.txt",
+	])
 	.assert()
 	.stdout(predicate::eq("379abac9ff01fe015da6d1fd033ae9f3  decode_output.txt\n379abac9ff01fe015da6d1fd033ae9f3  reference_file.txt\n"));
     // clean up the temp folder
