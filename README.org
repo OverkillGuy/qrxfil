@@ -2,7 +2,7 @@
 
 Exfiltrate files via QR codes.
 
-Splits files across many QR codes for "sending" across air-gapped
+Splits files across multiple QR codes for "sending" across air-gapped
 computer systems. Generates numbered PNG files to scan.
 
 The codes contain metadata about chunk number (e.g. "07 of 78") to

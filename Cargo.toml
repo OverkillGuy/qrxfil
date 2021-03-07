@@ -5,6 +5,8 @@ authors = ["Jb DOYON <jb@jiby.tech>"]
 license = "GPL-3.0-or-later"
 readme = "README.org"
 repository = "https://github.com/OverkillGuy/qrxfil/"
+description = "Exfiltrate files via QR codes"
+
 
 [dependencies]
 qrcode = "0.12"
