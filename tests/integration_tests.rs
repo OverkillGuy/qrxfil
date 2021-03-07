@@ -29,7 +29,7 @@ fn file_to_qr_happy() {
     ];
     println!("{} {} {}", &args[0], &args[1], &args[2]);
     cmd.args(&args).assert().success();
-    // Then a folder is created/1
+    // Then a folder is created
     output_folder.assert(predicate::path::is_dir());
     // And folder contains files
     let output_files =
