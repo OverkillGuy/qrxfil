@@ -20,19 +20,29 @@ This is a toy project meant to learn Rust, for which a Bash proof of
 concept was built as reference, see the =scripts/= folder.
 
 
+* Installation
+
+Use =cargo deb= to generate a Debian package on linux that provides the
+=qrxfil= command.
+
+#+begin_src shell
+cargo deb
+sudo dpkg -i target/debian/qrxfil_0.1.0_amd64.deb
+#+end_src
+
 * Usage
 
 To generate QR chunks for exfiltration:
 
 #+begin_src shell
-cargo run exfil file_to_exfil.txt qr_output_folder/
+qrxfil exfil file_to_exfil.txt qr_output_folder/
 #+end_src
 
 Once these QR images are scanned (on your own), we can reconstruct the
 file from a newline-delimited chunk file:
 
 #+begin_src shell
-cargo run restore newline_delimited_chunks.txt restored_file.txt
+qrxfil restore newline_delimited_chunks.txt restored_file.txt
 #+end_src
 
 
@@ -50,4 +60,10 @@ Run tests:
 cargo test
 #+end_src
 
-This project uses [[https://pre-commit.com/][pre-commit]].
+This project uses [[https://pre-commit.com/][pre-commit]] to enforce code guidelines.
+
+
+
+* License
+
+This project uses GPL-v3-or-later license, see file =COPYING=.
