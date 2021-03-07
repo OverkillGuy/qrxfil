@@ -99,11 +99,11 @@ fn encode(input_file: &Path, output_folder: &Path) {
         input_file, base64_filesize_bytes, chunk_totals
     );
     let mut chunk_count = 1;
-    let header_size = format!("{:02}OF{:02}", 1, 10).len();
+    let header_size = format!("{:03}OF{:03}", 1, 10).len();
     let expected_chunk_bytes_read = chunk_size - header_size;
     loop {
         let mut chunk_header: Vec<u8> =
-            format!("{:02}OF{:02}", chunk_count, chunk_totals).into_bytes();
+            format!("{:03}OF{:03}", chunk_count, chunk_totals).into_bytes();
 
         let mut chunk = Vec::<u8>::with_capacity(chunk_size);
         chunk.append(&mut chunk_header); // FIXME write prefix to buffer
@@ -124,10 +124,10 @@ fn encode(input_file: &Path, output_folder: &Path) {
 
         // Save the image.
         image
-            .save(output_folder.join(format!("{:02}.png", chunk_count)))
+            .save(output_folder.join(format!("{:03}.png", chunk_count)))
             .expect("Error saving chunk's QR code file");
 
-        println!("Saved QR {:02}/{}", chunk_count, chunk_totals);
+        println!("Saved QR {:03}/{}", chunk_count, chunk_totals);
         // let mut out_file = fs::File::create())
 
         // out_file

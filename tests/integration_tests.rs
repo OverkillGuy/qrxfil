@@ -63,7 +63,7 @@ fn file_to_qr_happy() {
     );
     // And the first chunk is created as qr code
     output_folder
-        .child("01.png")
+        .child("001.png")
         .assert(predicate::path::is_file());
 
     // clean up the temp folder
