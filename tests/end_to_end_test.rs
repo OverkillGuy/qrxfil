@@ -15,31 +15,23 @@
 // along with this program. If not, see
 // <https://www.gnu.org/licenses/>.
 
-use assert_cmd;
-use assert_fs;
-use predicates;
+use assert_cmd::Command;
+use assert_fs::prelude::*;
+use predicates::prelude::*;
 use rand::Rng;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 
-// extern crate assert_cmd;
-// extern crate assert_fs;
-// extern crate predicates;
-// extern crate rand;
-
-use image;
-use rqrr;
-
 fn qr_decode(file_path: &Path) -> String {
-    let img = image::open(file_path).unwrap().to_luma();
+    let img = image::open(file_path).unwrap().to_luma8();
     // Prepare for detection
     let mut img = rqrr::PreparedImage::prepare(img);
     // Search for grids, without decoding
     let grids = img.detect_grids();
     assert_eq!(grids.len(), 1);
     // Decode the grid
-    let (meta, content) = grids[0].decode().unwrap();
+    let (_meta, content) = grids[0].decode().unwrap();
     println!("{}", &content);
     content
 }
@@ -72,23 +64,24 @@ fn file_to_qr_and_back() {
 
     let output_files = std::fs::read_dir(output_folder.path())
         .expect("Could not list output directory")
-        .filter(|file| file.file_name().endswith("png"));
+        .map(Result::unwrap)
+        .filter(|file| file.file_name().to_str().unwrap().ends_with("png"));
 
     let decoded_filepath = temp.child("qr_decoded.txt");
 
     {
         //decode
-        let mut decoded_file = match fs::File::create(decoded_filepath) {
+        let mut decoded_file = match fs::File::create(decoded_filepath.path()) {
             Ok(f) => f,
             Err(err) => panic!("File error: {}", err),
         };
 
         for qr_file in output_files {
-            let decoded_string = qr_decode(qr_file);
+            let decoded_string = qr_decode(&qr_file.path());
             decoded_file
-                .write(&decoded_string)
+                .write_all(decoded_string.as_bytes())
                 .expect("Error writing QR decode file");
-            println!("decoded file {}", qr_file);
+            println!("decoded file {:?}", qr_file);
         }
     }
     // When running qrxfil in decode-mode
@@ -96,7 +89,7 @@ fn file_to_qr_and_back() {
     let restored_file = temp.child("restored.bin");
     let args = [
         "restore",
-        decoded_filepath.to_str().unwrap(),
+        decoded_filepath.path().to_str().unwrap(),
         restored_file.path().to_str().unwrap(),
     ];
     cmd.args(&args).assert().success();
@@ -106,8 +99,8 @@ fn file_to_qr_and_back() {
     Command::new("md5sum")
 	.current_dir(temp.path())
 	.args(&[
-            restored_file.to_str().unwrap(),
-            input_file.to_str().unwrap(),
+            restored_file.path().to_str().unwrap(),
+            input_file.path().to_str().unwrap(),
 	])
 	.assert()
 	.stdout(predicate::eq("379abac9ff01fe015da6d1fd033ae9f3  restored.bin\n379abac9ff01fe015da6d1fd033ae9f3  reference_file.txt\n"));
