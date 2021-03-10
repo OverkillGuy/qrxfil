@@ -10,7 +10,7 @@ description = "Exfiltrate files via QR codes"
 
 [dependencies]
 qrcode = "0.12"
-image = "0.23.13"
+image = "^0.23"
 base64 = "0.13.0"
 clap = {version = "2.33.3", features = ["yaml"]}
 
@@ -19,3 +19,5 @@ rand = "0.8.3"
 assert_cmd = "1.0.3"
 assert_fs = "1.0.1"
 predicates = "1.0.7"
+# Symmetric decode test
+rqrr = {version = "0.3.2", features = ["image"]}
