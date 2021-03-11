@@ -6,6 +6,7 @@ license = "GPL-3.0-or-later"
 readme = "README.org"
 repository = "https://github.com/OverkillGuy/qrxfil/"
 description = "Exfiltrate files via QR codes"
+edition = "2018"
 
 
 [dependencies]
