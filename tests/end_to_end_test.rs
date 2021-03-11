@@ -23,6 +23,7 @@ use rand::Rng;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
+use test_case::test_case;
 
 fn random_file_at(file_path: &ChildPath, file_size_bytes: i32) {
     let mut rng = rand::thread_rng();
@@ -118,16 +119,18 @@ fn md5sum_two_files(file1: &Path, file2: &Path, curdir: &Path) -> (String, Strin
 }
 
 // Scenario: exfil and restore an random file properly
-#[test]
-fn file_to_qr_and_back() {
+
+#[test_case(200 ; "Single chunk encoding")]
+#[test_case(4 * 1024 ; "Half dozen chunks")]
+// #[test_case(1024 * 500; "force overhead chunks to trigger issue 3")]
+fn file_to_qr_and_back(file_size_bytes: i32) {
     // Given a file with a few KB of random data
     let temp = assert_fs::TempDir::new().unwrap();
     let input_file = temp.child("to_send.bin");
     let output_folder = temp.child("output_qrs");
 
     // Fill input file with random data
-    let size_bytes: i32 = 1024; // 1KB right now
-    random_file_at(&input_file, size_bytes);
+    random_file_at(&input_file, file_size_bytes);
 
     // And qrxfil ran in exfil-mode with input filename + output folder
     run_qrxfil_assert_success(input_file.path(), output_folder.path());
