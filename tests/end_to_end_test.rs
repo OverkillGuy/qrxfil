@@ -70,7 +70,6 @@ fn file_to_qr_and_back() {
     let decoded_filepath = temp.child("qr_decoded.txt");
 
     {
-        //decode
         let mut decoded_file = match fs::File::create(decoded_filepath.path()) {
             Ok(f) => f,
             Err(err) => panic!("File error: {}", err),
@@ -81,7 +80,6 @@ fn file_to_qr_and_back() {
             decoded_file
                 .write_all(decoded_string.as_bytes())
                 .expect("Error writing QR decode file");
-            println!("decoded file {:?}", qr_file);
         }
     }
     // When running qrxfil in decode-mode
@@ -96,14 +94,35 @@ fn file_to_qr_and_back() {
     // Then a decoded file is created
     restored_file.assert(predicate::path::is_file());
     // And decoded file matches md5 of original
-    Command::new("md5sum")
-	.current_dir(temp.path())
-	.args(&[
+    let md5_out = Command::new("md5sum")
+        .current_dir(temp.path())
+        .args(&[
             restored_file.path().to_str().unwrap(),
             input_file.path().to_str().unwrap(),
-	])
-	.assert()
-	.stdout(predicate::eq("379abac9ff01fe015da6d1fd033ae9f3  restored.bin\n379abac9ff01fe015da6d1fd033ae9f3  reference_file.txt\n"));
+        ])
+        .output()
+        .expect("Failed while running md5")
+        .stdout;
+
+    let md5_str: String = String::from_utf8(md5_out).unwrap();
+
+    let lines: Vec<&str> = md5_str.lines().collect();
+    let md5_restored_split: Vec<&str> = lines[0].split("  ").collect();
+
+    println!(
+        "restored: '{}' for {}",
+        &md5_restored_split[0], &md5_restored_split[1],
+    );
+    let md5_reference_split: Vec<&str> = lines[1].split("  ").collect();
+    println!(
+        "line2: '{}' for {}",
+        &md5_reference_split[0], &md5_reference_split[1],
+    );
+
+    assert_eq!(
+        md5_restored_split[0], md5_reference_split[0],
+        "Restored md5sum didn't match reference file before exfil",
+    );
     // clean up the temp folder
     temp.close().expect("Error deleting temporary folder");
 }
