@@ -16,12 +16,23 @@
 // <https://www.gnu.org/licenses/>.
 
 use assert_cmd::Command;
+use assert_fs::fixture::ChildPath;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
 use rand::Rng;
 use std::fs;
 use std::io::Write;
 use std::path::Path;
+
+fn random_file_at(file_path: &ChildPath, file_size_bytes: i32) {
+    let mut rng = rand::thread_rng();
+    let random_chars: Vec<u8> = (0..file_size_bytes)
+        .map(|_| rng.gen_range(0..255))
+        .collect();
+    file_path
+        .write_binary(&random_chars)
+        .expect("Could not write random to file for test seeding");
+}
 
 fn qr_decode(file_path: &Path) -> String {
     let img = image::open(file_path).unwrap().to_luma8();
@@ -36,70 +47,51 @@ fn qr_decode(file_path: &Path) -> String {
     content
 }
 
-// Scenario: exfil and restore an random file properly
-#[test]
-fn file_to_qr_and_back() {
-    // Given a file with a few KB of random data
-    let temp = assert_fs::TempDir::new().unwrap();
-    let input_file = temp.child("to_send.bin");
-    let output_folder = temp.child("output_qrs");
-
-    // Fill input file with random data
-    let size_bytes: i32 = 1024; // 1KB right now
-    let mut rng = rand::thread_rng();
-    let random_chars: Vec<u8> = (0..size_bytes).map(|_| rng.gen_range(0..255)).collect();
-    input_file
-        .write_binary(&random_chars)
-        .expect("Could not write random to file for test seeding");
-
-    // And qrxfil ran in exfil-mode with input filename + output folder
-    let mut cmd = Command::cargo_bin("qrxfil").expect("Error find qrxfil command");
-    let args = [
-        "exfil",
-        input_file.path().to_str().unwrap(),
-        output_folder.path().to_str().unwrap(),
-    ];
-
-    cmd.args(&args).assert().success();
-
-    let output_files = std::fs::read_dir(output_folder.path())
+fn decode_qr_folder_to_file(output_folder: &Path, decoded_filepath: &Path) {
+    let output_files = std::fs::read_dir(output_folder)
         .expect("Could not list output directory")
         .map(Result::unwrap)
         .filter(|file| file.file_name().to_str().unwrap().ends_with("png"));
 
-    let decoded_filepath = temp.child("qr_decoded.txt");
+    let mut decoded_file = match fs::File::create(decoded_filepath) {
+        Ok(f) => f,
+        Err(err) => panic!("File error: {}", err),
+    };
 
-    {
-        let mut decoded_file = match fs::File::create(decoded_filepath.path()) {
-            Ok(f) => f,
-            Err(err) => panic!("File error: {}", err),
-        };
-
-        for qr_file in output_files {
-            let decoded_string = qr_decode(&qr_file.path());
-            decoded_file
-                .write_all(decoded_string.as_bytes())
-                .expect("Error writing QR decode file");
-        }
+    for qr_file in output_files {
+        let decoded_string = qr_decode(&qr_file.path());
+        decoded_file
+            .write_all(decoded_string.as_bytes())
+            .expect("Error writing QR decode file");
     }
-    // When running qrxfil in decode-mode
+}
+
+fn run_qrxfil_assert_success(input_file: &Path, output_folder: &Path) {
     let mut cmd = Command::cargo_bin("qrxfil").expect("Error find qrxfil command");
-    let restored_file = temp.child("restored.bin");
+    let args = [
+        "exfil",
+        input_file.to_str().unwrap(),
+        output_folder.to_str().unwrap(),
+    ];
+
+    cmd.args(&args).assert().success();
+}
+
+fn run_qrxfil_restore_assert_success(input_file: &Path, restored_file: &Path) {
+    let mut cmd = Command::cargo_bin("qrxfil").expect("Error find qrxfil command");
     let args = [
         "restore",
-        decoded_filepath.path().to_str().unwrap(),
-        restored_file.path().to_str().unwrap(),
+        input_file.to_str().unwrap(),
+        restored_file.to_str().unwrap(),
     ];
     cmd.args(&args).assert().success();
-    // Then a decoded file is created
-    restored_file.assert(predicate::path::is_file());
+}
+
+fn md5sum_two_files(file1: &Path, file2: &Path, curdir: &Path) -> (String, String) {
     // And decoded file matches md5 of original
     let md5_out = Command::new("md5sum")
-        .current_dir(temp.path())
-        .args(&[
-            restored_file.path().to_str().unwrap(),
-            input_file.path().to_str().unwrap(),
-        ])
+        .current_dir(curdir)
+        .args(&[file1.to_str().unwrap(), file2.to_str().unwrap()])
         .output()
         .expect("Failed while running md5")
         .stdout;
@@ -119,8 +111,38 @@ fn file_to_qr_and_back() {
         &md5_reference_split[0], &md5_reference_split[1],
     );
 
+    (
+        String::from(md5_restored_split[0]),
+        String::from(md5_reference_split[0]),
+    )
+}
+
+// Scenario: exfil and restore an random file properly
+#[test]
+fn file_to_qr_and_back() {
+    // Given a file with a few KB of random data
+    let temp = assert_fs::TempDir::new().unwrap();
+    let input_file = temp.child("to_send.bin");
+    let output_folder = temp.child("output_qrs");
+
+    // Fill input file with random data
+    let size_bytes: i32 = 1024; // 1KB right now
+    random_file_at(&input_file, size_bytes);
+
+    // And qrxfil ran in exfil-mode with input filename + output folder
+    run_qrxfil_assert_success(input_file.path(), output_folder.path());
+    let decoded_filepath = temp.child("qr_decoded.txt");
+    decode_qr_folder_to_file(output_folder.path(), decoded_filepath.path());
+    // When running qrxfil in decode-mode
+    let restored_file = temp.child("restored.bin");
+    run_qrxfil_restore_assert_success(decoded_filepath.path(), restored_file.path());
+    // Then a decoded file is created
+    restored_file.assert(predicate::path::is_file());
+
+    let (md5_restored, md5_reference) =
+        md5sum_two_files(restored_file.path(), input_file.path(), temp.path());
     assert_eq!(
-        md5_restored_split[0], md5_reference_split[0],
+        md5_restored, md5_reference,
         "Restored md5sum didn't match reference file before exfil",
     );
     // clean up the temp folder
