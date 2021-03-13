@@ -22,7 +22,7 @@ use predicates::prelude::*;
 use rand::Rng;
 use std::fs;
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use test_case::test_case;
 
 fn random_file_at(file_path: &ChildPath, file_size_bytes: i32) {
@@ -49,10 +49,14 @@ fn qr_decode(file_path: &Path) -> String {
 }
 
 fn decode_qr_folder_to_file(output_folder: &Path, decoded_filepath: &Path) {
-    let output_files = std::fs::read_dir(output_folder)
+    let mut output_files: Vec<PathBuf> = std::fs::read_dir(output_folder)
         .expect("Could not list output directory")
         .map(Result::unwrap)
-        .filter(|file| file.file_name().to_str().unwrap().ends_with("png"));
+        .filter(|file| file.file_name().to_str().unwrap().ends_with("png"))
+        .map(|e| e.path())
+        .collect();
+    // read_dir does not guarantee ordering => explicit sort chunk files
+    output_files.sort();
 
     let mut decoded_file = match fs::File::create(decoded_filepath) {
         Ok(f) => f,
@@ -60,9 +64,12 @@ fn decode_qr_folder_to_file(output_folder: &Path, decoded_filepath: &Path) {
     };
 
     for qr_file in output_files {
-        let decoded_string = qr_decode(&qr_file.path());
+        let decoded_string = qr_decode(&qr_file);
         decoded_file
             .write_all(decoded_string.as_bytes())
+            .expect("Error writing QR decode file");
+        decoded_file
+            .write("\n".as_bytes())
             .expect("Error writing QR decode file");
     }
 }
