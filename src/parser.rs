@@ -20,6 +20,7 @@
 //! Parse encoded string into a struct for reassembly
 
 use std::collections::HashSet;
+use std::{fmt, fmt::Display};
 // use std::iter::FromIterator;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -64,6 +65,12 @@ pub enum RestoreError {
     },
 }
 
+impl Display for RestoreError {
+    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
+        todo!()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 /// Result type for errors of Chunk parsing
 pub enum ChunkParseError {
@@ -76,7 +83,7 @@ pub enum ChunkParseError {
 /// Check the given chunks contain all the pieces to restore
 ///
 /// Ensures that all chunks between 1 and `total`] are found in `chunks`
-pub fn check_chunk_range(chunks: &Vec<EncodedChunk>) -> Result<(), RestoreError> {
+pub fn check_chunk_range(chunks: &[EncodedChunk]) -> Result<(), RestoreError> {
     let expected_total: u16 = chunks[0].total;
     let mut actual_chunk_ids = HashSet::<u16>::with_capacity(expected_total as usize);
     for chunk in chunks {
@@ -88,7 +95,7 @@ pub fn check_chunk_range(chunks: &Vec<EncodedChunk>) -> Result<(), RestoreError>
         }
         actual_chunk_ids.insert(chunk.id);
     }
-    let expected_chunk_ids: HashSet<u16> = (1..expected_total + 1).collect();
+    let expected_chunk_ids: HashSet<u16> = (1..=expected_total).collect();
     if actual_chunk_ids == expected_chunk_ids {
         return Ok(());
     }
@@ -98,7 +105,7 @@ pub fn check_chunk_range(chunks: &Vec<EncodedChunk>) -> Result<(), RestoreError>
             .cloned()
             .collect::<Vec<u16>>();
         return Err(RestoreError::MissingChunk {
-            expected_total: expected_total,
+            expected_total,
             missing_chunk_ids: missing_ids,
         });
     }
@@ -108,7 +115,7 @@ pub fn check_chunk_range(chunks: &Vec<EncodedChunk>) -> Result<(), RestoreError>
             .cloned()
             .collect::<Vec<u16>>();
         return Err(RestoreError::TooManyChunks {
-            expected_total: expected_total,
+            expected_total,
             unexpected_chunk_ids: too_many_ids,
         });
     }
@@ -201,7 +208,7 @@ mod range_tests {
             payload: String::from("payload1"),
         };
         // Create many chunks with proper data
-        let chunks: Vec<EncodedChunk> = (1..total_number_chunks + 1)
+        let chunks: Vec<EncodedChunk> = (1..=total_number_chunks)
             .map(|i| EncodedChunk {
                 id: i,
                 payload: format!("payload{}", i),

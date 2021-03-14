@@ -73,7 +73,7 @@ fn decode_qr_folder_to_file(files_to_decode: Vec<PathBuf>, decoded_filepath: &Pa
             .write_all(decoded_string.as_bytes())
             .expect("Error writing QR decode file");
         decoded_file
-            .write("\n".as_bytes())
+            .write_all("\n".as_bytes())
             .expect("Error writing QR decode file");
     }
 }
