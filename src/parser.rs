@@ -19,6 +19,9 @@
 //!
 //! Parse encoded string into a struct for reassembly
 
+use std::collections::HashSet;
+// use std::iter::FromIterator;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// A chunk that's already encoded, with base64 payload
 pub struct EncodedChunk {
@@ -75,7 +78,25 @@ pub enum ChunkParseError {
 /// Check the given chunks contain all the pieces to restore
 ///
 /// Ensures that all chunks between 1 and `total`] are found in `chunks`
-fn check_chunk_range(_chunks: &Vec<EncodedChunk>, _total: u16) -> Result<(), RestoreError> {
+fn check_chunk_range(chunks: &Vec<EncodedChunk>, total: u16) -> Result<(), RestoreError> {
+    let mut actual_chunk_ids = HashSet::<u16>::with_capacity(total as usize);
+    for chunk in chunks {
+        actual_chunk_ids.insert(chunk.id);
+    }
+    let expected_chunk_ids: HashSet<u16> = (1..total + 1).collect();
+    if actual_chunk_ids == expected_chunk_ids {
+        return Ok(());
+    }
+    if actual_chunk_ids.is_subset(&expected_chunk_ids) {
+        let missing_ids = expected_chunk_ids
+            .difference(&actual_chunk_ids)
+            .cloned()
+            .collect::<Vec<u16>>();
+        return Err(RestoreError::MissingChunk {
+            expected_total: total,
+            missing_chunk_ids: missing_ids,
+        });
+    }
     Ok(())
 }
 
@@ -193,7 +214,7 @@ mod range_tests {
         let range_check = check_chunk_range(&chunks, chunks[0].total);
         let error = Err(RestoreError::MissingChunk {
             expected_total: 3,
-            missing_chunk_ids: vec![1],
+            missing_chunk_ids: vec![3],
         });
         assert_eq!(range_check, error);
     }
