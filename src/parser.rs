@@ -19,12 +19,47 @@
 //!
 //! Parse encoded string into a struct for reassembly
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// A chunk that's already encoded, with base64 payload
 pub struct EncodedChunk {
     pub id: u16,
     pub total: u16,
     pub payload: String,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+#[allow(dead_code)] // Temporary while unused by main
+/// Things that can go wrong when restoring a chunked file
+pub enum RestoreError {
+    /// Not enough chunks for the expected total
+    MissingChunk {
+        /// How many we thought we'd find
+        expected_total: u16,
+        /// The ones we don't have
+        missing_chunk_ids: Vec<u16>,
+    },
+    /// Unexpectedly too many chunks ("52 of 51")
+    TooManyChunks {
+        /// How many we thought we'd find
+        expected_total: u16,
+        /// IDs of chunks we got beyond `expected_total`
+        unexpected_chunk_ids: Vec<u16>,
+    },
+    /// A chunk's total doesn't match the expected total
+    /// "Expected" total is set from first decoded chunks as reference
+    TotalMismatch {
+        /// The original chunk we used as reference for total
+        reference_chunk: EncodedChunk,
+        /// The chunk we found a different total than reference
+        clashing_chunk: EncodedChunk,
+    },
+    /// A chunk could not be parsed
+    ChunkDecodeError {
+        /// What went wrong
+        error: ChunkParseError,
+        /// Chunk as string before parsing
+        raw_chunk: String,
+    },
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -34,6 +69,14 @@ pub enum ChunkParseError {
     TotalMissing,
     PayloadMissing,
     BadSeparator,
+}
+
+#[allow(dead_code)] // Temporary while unused by main
+/// Check the given chunks contain all the pieces to restore
+///
+/// Ensures that all chunks between 1 and `total`] are found in `chunks`
+fn check_chunk_range(_chunks: &Vec<EncodedChunk>, _total: u16) -> Result<(), RestoreError> {
+    Ok(())
 }
 
 /// Parse `chunk` string to extract id/total fields
@@ -71,7 +114,7 @@ pub fn parse(chunk: &str) -> Result<EncodedChunk, ChunkParseError> {
 }
 
 #[cfg(test)]
-mod chunk_tests {
+mod parse_tests {
     use super::*;
 
     #[test]
@@ -106,5 +149,96 @@ mod chunk_tests {
     fn decode_bad_separator_test() {
         let expected = Err(ChunkParseError::BadSeparator);
         assert_eq!(parse("011BA002abcdef"), expected);
+    }
+}
+
+#[cfg(test)]
+mod range_tests {
+    use super::*;
+
+    #[test]
+    fn range_ok_test() {
+        let total_number_chunks: u16 = 37;
+        let first_chunk = EncodedChunk {
+            id: 1,
+            total: total_number_chunks,
+            payload: String::from("payload1"),
+        };
+        // Create many chunks with proper data
+        let chunks: Vec<EncodedChunk> = (1..total_number_chunks)
+            .map(|i| EncodedChunk {
+                id: i,
+                payload: format!("payload{}", i),
+                ..first_chunk
+            })
+            .collect();
+
+        assert!(check_chunk_range(&chunks, chunks[0].total).is_ok());
+    }
+
+    #[test]
+    fn range_missing_chunk_test() {
+        let chunks: Vec<EncodedChunk> = vec![
+            EncodedChunk {
+                id: 1,
+                total: 3,
+                payload: String::from("payload1"),
+            },
+            EncodedChunk {
+                id: 2,
+                total: 3,
+                payload: String::from("payload2"),
+            }, // missing third chunk
+        ];
+        let range_check = check_chunk_range(&chunks, chunks[0].total);
+        let error = Err(RestoreError::MissingChunk {
+            expected_total: 3,
+            missing_chunk_ids: vec![1],
+        });
+        assert_eq!(range_check, error);
+    }
+
+    #[test]
+    fn range_too_many_chunks_test() {
+        let chunks: Vec<EncodedChunk> = vec![
+            EncodedChunk {
+                id: 1,
+                total: 1,
+                payload: String::from("payload1"),
+            },
+            // "Chunk 2 of 1"
+            EncodedChunk {
+                id: 2,
+                total: 1,
+                payload: String::from("payload2"),
+            },
+        ];
+        let range_check = check_chunk_range(&chunks, chunks[0].total);
+        let error = Err(RestoreError::TooManyChunks {
+            expected_total: 3,
+            unexpected_chunk_ids: vec![2],
+        });
+        assert_eq!(range_check, error);
+    }
+
+    #[test]
+    fn range_total_mismatch_test() {
+        let reference = EncodedChunk {
+            id: 1,
+            total: 3,
+            payload: String::from("payload1"),
+        };
+        let clashing = EncodedChunk {
+            id: 2,
+            total: 4,
+            payload: String::from("payload2"),
+        };
+        let chunks: Vec<EncodedChunk> = vec![reference.clone(), clashing.clone()];
+        let range_check = check_chunk_range(&chunks, chunks[0].total);
+        let error = Err(RestoreError::TotalMismatch {
+            reference_chunk: reference,
+            clashing_chunk: clashing,
+        });
+        assert_eq!(range_check, error);
     }
 }
