@@ -97,6 +97,16 @@ fn check_chunk_range(chunks: &Vec<EncodedChunk>, total: u16) -> Result<(), Resto
             missing_chunk_ids: missing_ids,
         });
     }
+    if actual_chunk_ids.is_superset(&expected_chunk_ids) {
+        let too_many_ids = actual_chunk_ids
+            .difference(&expected_chunk_ids)
+            .cloned()
+            .collect::<Vec<u16>>();
+        return Err(RestoreError::TooManyChunks {
+            expected_total: total,
+            unexpected_chunk_ids: too_many_ids,
+        });
+    }
     Ok(())
 }
 
@@ -236,7 +246,7 @@ mod range_tests {
         ];
         let range_check = check_chunk_range(&chunks, chunks[0].total);
         let error = Err(RestoreError::TooManyChunks {
-            expected_total: 3,
+            expected_total: 1,
             unexpected_chunk_ids: vec![2],
         });
         assert_eq!(range_check, error);
