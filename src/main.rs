@@ -156,25 +156,34 @@ fn decode(input_path: &Path, restored_path: &Path) {
 
     let reader = BufReader::new(input_file);
 
-    let chunks: Vec<parser::EncodedChunk> = reader
+    let mut chunks: Vec<parser::EncodedChunk> = reader
         .lines()
-        .map(|l| parser::parse(&l.unwrap()).expect("Invalid chunk read"))
+        .map(|l| {
+            let chunk: parser::EncodedChunk =
+                parser::parse(&l.unwrap()).expect("Invalid chunk read");
+            println!("id:{}", chunk.id);
+            chunk
+        })
         .collect();
+    // re-sort the chunks for out-of-order scanning
+    chunks.sort_by_key(|chunk| chunk.id);
 
-    // TODO re-sort the chunks if needed
+    let concatenated_chunk_payloads = chunks
+        .iter()
+        .map(|c| c.payload.clone())
+        .collect::<Vec<String>>()
+        .concat();
 
     let mut restored_file = match fs::File::create(restored_path) {
         Ok(f) => f,
         Err(err) => panic!("File error creating restored file: {}", err),
     };
-    for chunk in chunks {
-        println!("{}/{}", chunk.id, chunk.total);
-        let decoded_chunk_bytes =
-            base64::decode(chunk.payload).expect("Error base64 decoding chunk");
-        restored_file
-            .write_all(&decoded_chunk_bytes)
-            .expect("Error writing out restored file chunk");
-    }
+
+    let decoded_contents =
+        base64::decode(concatenated_chunk_payloads).expect("Error base64 decoding file");
+    restored_file
+        .write_all(&decoded_contents)
+        .expect("Error writing out restored file chunk");
     // panic!("Noooo");
 }
 
