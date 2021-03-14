@@ -156,7 +156,7 @@ fn decode(input_path: &Path, restored_path: &Path) {
 
     let reader = BufReader::new(input_file);
 
-    let chunks: Vec<parser::EncodedChunk> = reader
+    let mut chunks: Vec<parser::EncodedChunk> = reader
         .lines()
         .map(|l| {
             let chunk: parser::EncodedChunk =
@@ -165,8 +165,9 @@ fn decode(input_path: &Path, restored_path: &Path) {
             chunk
         })
         .collect();
+    // re-sort the chunks for out-of-order scanning
+    chunks.sort_by_key(|chunk| chunk.id);
 
-    // TODO re-sort the chunks if needed
     let concatenated_chunk_payloads = chunks
         .iter()
         .map(|c| c.payload.clone())

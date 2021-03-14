@@ -19,6 +19,7 @@ use assert_cmd::Command;
 use assert_fs::fixture::ChildPath;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
+use rand::prelude::SliceRandom;
 use rand::Rng;
 use std::fs;
 use std::io::Write;
@@ -48,8 +49,8 @@ fn qr_decode(file_path: &Path) -> String {
     content
 }
 
-fn decode_qr_folder_to_file(output_folder: &Path, decoded_filepath: &Path) {
-    let mut output_files: Vec<PathBuf> = std::fs::read_dir(output_folder)
+fn read_folder_sorted(folder: &Path) -> Vec<PathBuf> {
+    let mut output_files: Vec<PathBuf> = std::fs::read_dir(folder)
         .expect("Could not list output directory")
         .map(Result::unwrap)
         .filter(|file| file.file_name().to_str().unwrap().ends_with("png"))
@@ -57,13 +58,16 @@ fn decode_qr_folder_to_file(output_folder: &Path, decoded_filepath: &Path) {
         .collect();
     // read_dir does not guarantee ordering => explicit sort chunk files
     output_files.sort();
+    output_files
+}
 
+fn decode_qr_folder_to_file(files_to_decode: Vec<PathBuf>, decoded_filepath: &Path) {
     let mut decoded_file = match fs::File::create(decoded_filepath) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
     };
 
-    for qr_file in output_files {
+    for qr_file in files_to_decode {
         let decoded_string = qr_decode(&qr_file);
         decoded_file
             .write_all(decoded_string.as_bytes())
@@ -142,7 +146,8 @@ fn file_to_qr_and_back(file_size_bytes: i32) {
     // And qrxfil ran in exfil-mode with input filename + output folder
     run_qrxfil_assert_success(input_file.path(), output_folder.path());
     let decoded_filepath = temp.child("qr_decoded.txt");
-    decode_qr_folder_to_file(output_folder.path(), decoded_filepath.path());
+    let files_to_decode = read_folder_sorted(output_folder.path());
+    decode_qr_folder_to_file(files_to_decode, decoded_filepath.path());
     // When running qrxfil in decode-mode
     let restored_file = temp.child("restored.bin");
     run_qrxfil_restore_assert_success(decoded_filepath.path(), restored_file.path());
@@ -151,6 +156,44 @@ fn file_to_qr_and_back(file_size_bytes: i32) {
 
     let (md5_restored, md5_reference) =
         md5sum_two_files(restored_file.path(), input_file.path(), temp.path());
+    // And the decoded file is identical to original
+    assert_eq!(
+        md5_restored, md5_reference,
+        "Restored md5sum didn't match reference file before exfil",
+    );
+    // clean up the temp folder
+    temp.close().expect("Error deleting temporary folder");
+}
+
+#[test]
+// Scenario: Out of order chunk during decode still works
+fn out_of_order_chunk_scanning() {
+    // Given a file with a few KB of random data
+    let temp = assert_fs::TempDir::new().unwrap();
+    let input_file = temp.child("to_send.bin");
+    let output_folder = temp.child("output_qrs");
+
+    // Fill input file with random data
+    random_file_at(&input_file, 4 * 1024);
+
+    // And qrxfil ran in exfil-mode with input filename + output folder
+    run_qrxfil_assert_success(input_file.path(), output_folder.path());
+    let decoded_filepath = temp.child("qr_decoded.txt");
+    // But the files were decoded out of order
+    let mut files_to_decode = read_folder_sorted(output_folder.path());
+    let mut rng = rand::thread_rng();
+    files_to_decode.shuffle(&mut rng);
+
+    decode_qr_folder_to_file(files_to_decode, decoded_filepath.path());
+    // When running qrxfil in decode-mode
+    let restored_file = temp.child("restored.bin");
+    run_qrxfil_restore_assert_success(decoded_filepath.path(), restored_file.path());
+    // Then a decoded file is created
+    restored_file.assert(predicate::path::is_file());
+
+    let (md5_restored, md5_reference) =
+        md5sum_two_files(restored_file.path(), input_file.path(), temp.path());
+    // And the decoded file is identical to original
     assert_eq!(
         md5_restored, md5_reference,
         "Restored md5sum didn't match reference file before exfil",
