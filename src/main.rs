@@ -148,7 +148,7 @@ fn encode(input_file: &Path, output_folder: &Path) {
 /// Decodes QR strings found in `input_path` (newline-separated) with
 /// qrxfil to restore file to `restored_file`
 ///
-fn decode(input_path: &Path, restored_path: &Path) {
+fn decode(input_path: &Path, restored_path: &Path) -> Result<(), parser::RestoreError> {
     let input_file = match fs::File::open(input_path) {
         Ok(f) => f,
         Err(err) => panic!("File error on opening decode input: {}", err),
@@ -156,17 +156,26 @@ fn decode(input_path: &Path, restored_path: &Path) {
 
     let reader = BufReader::new(input_file);
 
-    let mut chunks: Vec<parser::EncodedChunk> = reader
-        .lines()
-        .map(|l| {
-            let chunk: parser::EncodedChunk =
-                parser::parse(&l.unwrap()).expect("Invalid chunk read");
-            println!("id:{}", chunk.id);
-            chunk
-        })
-        .collect();
+    let mut chunks = Vec::<parser::EncodedChunk>::new();
+    for line in reader.lines() {
+        let l = line.expect("Error reading a line off input file");
+        let chunk = parser::parse(&l);
+        match chunk {
+            Ok(c) => chunks.push(c),
+            Err(err) => {
+                println!("Erroring {:?} ", err);
+                return Err(parser::RestoreError::ChunkDecodeError {
+                    error: err,
+                    raw_chunk: l,
+                });
+            }
+        }
+    }
+
     // re-sort the chunks for out-of-order scanning
     chunks.sort_by_key(|chunk| chunk.id);
+
+    parser::check_chunk_range(&chunks)?;
 
     let concatenated_chunk_payloads = chunks
         .iter()
@@ -184,10 +193,10 @@ fn decode(input_path: &Path, restored_path: &Path) {
     restored_file
         .write_all(&decoded_contents)
         .expect("Error writing out restored file chunk");
-    // panic!("Noooo");
+    Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), parser::RestoreError> {
     let matches = App::new("qrxfil")
         .version("0.1")
         .about("Transfer/backup files as a sequence of QR codes")
@@ -238,11 +247,13 @@ fn main() {
         let output_folder = matches_exfil.value_of("output_folder").unwrap();
 
         encode(Path::new(input_filename), Path::new(output_folder));
+        return Ok(());
     }
     if let Some(matches_restore) = matches.subcommand_matches("restore") {
         let encoded_input_filename = matches_restore.value_of("encoded_input").unwrap();
         let output_file = matches_restore.value_of("output_file").unwrap();
 
-        decode(Path::new(encoded_input_filename), Path::new(output_file));
+        return decode(Path::new(encoded_input_filename), Path::new(output_file));
     }
+    Ok(())
 }

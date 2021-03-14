@@ -31,7 +31,6 @@ pub struct EncodedChunk {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-#[allow(dead_code)] // Temporary while unused by main
 /// Things that can go wrong when restoring a chunked file
 pub enum RestoreError {
     /// Not enough chunks for the expected total
@@ -74,11 +73,10 @@ pub enum ChunkParseError {
     BadSeparator,
 }
 
-#[allow(dead_code)] // Temporary while unused by main
 /// Check the given chunks contain all the pieces to restore
 ///
 /// Ensures that all chunks between 1 and `total`] are found in `chunks`
-fn check_chunk_range(chunks: &Vec<EncodedChunk>) -> Result<(), RestoreError> {
+pub fn check_chunk_range(chunks: &Vec<EncodedChunk>) -> Result<(), RestoreError> {
     let expected_total: u16 = chunks[0].total;
     let mut actual_chunk_ids = HashSet::<u16>::with_capacity(expected_total as usize);
     for chunk in chunks {
