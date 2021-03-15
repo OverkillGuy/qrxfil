@@ -29,14 +29,14 @@
 #![deny(missing_debug_implementations, clippy::all)]
 #![deny(missing_docs)]
 
-use clap::{App, Arg, SubCommand};
+use clap::{App, Arg, ArgMatches, SubCommand};
 use image::Luma;
 use qrcode::QrCode;
-use std::fs;
-use std::io::Write;
-use std::io::{BufRead, BufReader, Read};
-use std::io::{Seek, SeekFrom};
-use std::path::Path;
+use std::{
+    fs,
+    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
+    path::Path,
+};
 extern crate base64;
 extern crate clap;
 extern crate image;
@@ -147,7 +147,6 @@ fn encode(input_file: &Path, output_folder: &Path) {
 
 /// Decodes QR strings found in `input_path` (newline-separated) with
 /// qrxfil to restore file to `restored_file`
-///
 fn decode(input_path: &Path, restored_path: &Path) -> Result<(), parser::RestoreError> {
     let input_file = match fs::File::open(input_path) {
         Ok(f) => f,
@@ -197,51 +196,57 @@ fn decode(input_path: &Path, restored_path: &Path) -> Result<(), parser::Restore
 }
 
 fn main() -> Result<(), parser::RestoreError> {
-    let matches = App::new("qrxfil")
-        .version("0.1")
-        .about("Transfer/backup files as a sequence of QR codes")
-        .author("Jb DOYON") // And authors
-        .subcommand(
-            SubCommand::with_name("exfil")
-                .about("Generates QR code sequence from file")
-                .arg(
-                    Arg::with_name("input") // And their own arguments
-                        .help("The input file to split into QR codes")
-                        .index(1)
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("output_folder")
-                        .help("The output folder to generate codes into")
-                        .index(2)
-                        .required(true),
-                ),
+    let matches = get_args();
+    let result = run(&matches);
+    if let Err(ref e) = result {
+        eprintln!("{}", e);
+    }
+
+    result
+}
+
+fn get_args() -> ArgMatches<'static> {
+    App::new("qrxfil")
+    .version("0.1")
+    .about("Transfer/backup files as a sequence of QR codes")
+    .author("Jb DOYON") // And authors
+    .subcommand(
+        SubCommand::with_name("exfil")
+            .about("Generates QR code sequence from file")
+            .arg(
+                Arg::with_name("input") // And their own arguments
+                    .help("The input file to split into QR codes")
+                    .index(1)
+                    .required(true),
+            )
+            .arg(
+                Arg::with_name("output_folder")
+                    .help("The output folder to generate codes into")
+                    .index(2)
+                    .required(true),
+            ),
+    )
+    .subcommand(
+        SubCommand::with_name("restore")
+            .about("Decodes encoded strings back into file"
         )
-	.subcommand(
-	                SubCommand::with_name("restore")
-                .about("Decodes encoded strings back into file")
-                .arg(
-                    Arg::with_name("encoded_input") // And their own arguments
-                        .help("The input file with newline-delimited QR strings")
-                        .index(1)
-                        .required(true),
-                )
-                .arg(
-                    Arg::with_name("output_file")
-                        .help("The output file to restore into")
-                        .index(2)
-                        .required(true),
-                ),
+            .arg(
+                Arg::with_name("encoded_input") // And their own arguments
+                    .help("The input file with newline-delimited QR strings")
+                    .index(1)
+                    .required(true),
+            )
+            .arg(
+                Arg::with_name("output_file")
+                    .help("The output file to restore into")
+                    .index(2)
+                    .required(true),
+            ),
 
-	)
-        .get_matches();
+).get_matches()
+}
 
-    // // You can check if a subcommand was used like normal
-    // let matches_exfil = match matches.subcommand_matches("exfil") {
-    //     Some(i) => i,
-    //     None => panic!("Exfil alone is implemented"),
-    // };
-
+fn run(matches: &ArgMatches<'static>) -> Result<(), parser::RestoreError> {
     if let Some(matches_exfil) = matches.subcommand_matches("exfil") {
         let input_filename = matches_exfil.value_of("input").unwrap();
         let output_folder = matches_exfil.value_of("output_folder").unwrap();
