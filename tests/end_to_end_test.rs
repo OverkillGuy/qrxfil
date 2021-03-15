@@ -16,14 +16,14 @@
 // <https://www.gnu.org/licenses/>.
 
 use assert_cmd::Command;
-use assert_fs::fixture::ChildPath;
-use assert_fs::prelude::*;
+use assert_fs::{fixture::ChildPath, prelude::*};
 use predicates::prelude::*;
-use rand::prelude::SliceRandom;
-use rand::Rng;
-use std::fs;
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use rand::{prelude::SliceRandom, Rng};
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
 use test_case::test_case;
 
 fn random_file_at(file_path: &ChildPath, file_size_bytes: i32) {

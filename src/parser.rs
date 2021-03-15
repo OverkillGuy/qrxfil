@@ -19,8 +19,7 @@
 //!
 //! Parse encoded string into a struct for reassembly
 
-use std::collections::HashSet;
-use std::{fmt, fmt::Display};
+use std::{collections::HashSet, fmt, fmt::Display};
 // use std::iter::FromIterator;
 
 #[derive(Debug, PartialEq, Eq, Clone)]

@@ -32,11 +32,11 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
 use image::Luma;
 use qrcode::QrCode;
-use std::fs;
-use std::io::Write;
-use std::io::{BufRead, BufReader, Read};
-use std::io::{Seek, SeekFrom};
-use std::path::Path;
+use std::{
+    fs,
+    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
+    path::Path,
+};
 extern crate base64;
 extern crate clap;
 extern crate image;
@@ -147,7 +147,6 @@ fn encode(input_file: &Path, output_folder: &Path) {
 
 /// Decodes QR strings found in `input_path` (newline-separated) with
 /// qrxfil to restore file to `restored_file`
-///
 fn decode(input_path: &Path, restored_path: &Path) -> Result<(), parser::RestoreError> {
     let input_file = match fs::File::open(input_path) {
         Ok(f) => f,
@@ -227,9 +226,10 @@ fn get_args() -> ArgMatches<'static> {
                     .required(true),
             ),
     )
-.subcommand(
-                SubCommand::with_name("restore")
-            .about("Decodes encoded strings back into file")
+    .subcommand(
+        SubCommand::with_name("restore")
+            .about("Decodes encoded strings back into file"
+        )
             .arg(
                 Arg::with_name("encoded_input") // And their own arguments
                     .help("The input file with newline-delimited QR strings")
@@ -243,8 +243,7 @@ fn get_args() -> ArgMatches<'static> {
                     .required(true),
             ),
 
-)
-    .get_matches()
+).get_matches()
 }
 
 fn run(matches: &ArgMatches<'static>) -> Result<(), parser::RestoreError> {
