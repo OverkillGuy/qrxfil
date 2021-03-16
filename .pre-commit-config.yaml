@@ -16,3 +16,10 @@ repos:
     -   id: cargo-check
     -   id: clippy
     -   id: fmt
+# -   repo: local
+#     hooks:
+#       - id: cargo-test
+#         name: [SLOW] Run cargo tests
+#         entry: cargo test --all-features
+#         pass_filenames: false
+#         language: system
