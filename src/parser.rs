@@ -19,12 +19,88 @@
 //!
 //! Parse encoded string into a struct for reassembly
 
-#[derive(Debug, PartialEq, Eq)]
+use std::{collections::HashSet, fmt, fmt::Display};
+// use std::iter::FromIterator;
+
+#[derive(Debug, PartialEq, Eq, Clone)]
 /// A chunk that's already encoded, with base64 payload
 pub struct EncodedChunk {
     pub id: u16,
     pub total: u16,
     pub payload: String,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+/// Things that can go wrong when restoring a chunked file
+pub enum RestoreError {
+    /// Not enough chunks for the expected total
+    MissingChunk {
+        /// How many we thought we'd find
+        expected_total: u16,
+        /// The ones we don't have
+        missing_chunk_ids: Vec<u16>,
+    },
+    /// Unexpectedly too many chunks ("52 of 51")
+    TooManyChunks {
+        /// How many we thought we'd find
+        expected_total: u16,
+        /// IDs of chunks we got beyond `expected_total`
+        unexpected_chunk_ids: Vec<u16>,
+    },
+    /// A chunk's total doesn't match the expected total
+    /// "Expected" total is set from first decoded chunks as reference
+    TotalMismatch {
+        /// The original chunk we used as reference for total
+        reference_chunk: EncodedChunk,
+        /// The chunk we found a different total than reference
+        clashing_chunk: EncodedChunk,
+    },
+    /// A chunk could not be parsed
+    ChunkDecodeError {
+        /// What went wrong
+        error: ChunkParseError,
+        /// Chunk as string before parsing
+        raw_chunk: String,
+    },
+}
+
+impl Display for RestoreError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RestoreError::ChunkDecodeError { raw_chunk, error } => write!(
+                f,
+                "Error decoding chunk! Error was: {:?} for chunk '{}'",
+                error, raw_chunk
+            ),
+            RestoreError::MissingChunk {
+                expected_total,
+                missing_chunk_ids,
+            } => write!(
+                f,
+                "Missing some chunks! Expected to see {} chunks, \
+		 but missing chunks: {:?}",
+                expected_total, missing_chunk_ids
+            ),
+            RestoreError::TotalMismatch {
+                reference_chunk,
+                clashing_chunk,
+            } => write!(
+                f,
+                "A chunk reported a total that didn't match the expected total. \
+                 Reference chunk said {} chunks total, clashing chunk said {}",
+                reference_chunk.total, clashing_chunk.total
+            ),
+            RestoreError::TooManyChunks {
+                expected_total,
+                unexpected_chunk_ids,
+            } => write!(
+                f,
+                "Too many chunks were found! Expected {} chunks, \
+		 found extra chunks {:?}",
+                expected_total, unexpected_chunk_ids
+            ),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -34,6 +110,59 @@ pub enum ChunkParseError {
     TotalMissing,
     PayloadMissing,
     BadSeparator,
+}
+
+impl Display for ChunkParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ChunkParseError::IdMissing => write!(f, "Chunk identifier not found"),
+            ChunkParseError::TotalMissing => write!(f, "Total number of chunks not found"),
+            ChunkParseError::PayloadMissing => write!(f, "Chunk has no payload"),
+            ChunkParseError::BadSeparator => write!(f, "Chunk id/total separator incorrect"),
+        }
+    }
+}
+
+/// Check the given chunks contain all the pieces to restore
+///
+/// Ensures that all chunks between 1 and `total`] are found in `chunks`
+pub fn check_chunk_range(chunks: &[EncodedChunk]) -> Result<(), RestoreError> {
+    let expected_total: u16 = chunks[0].total;
+    let mut actual_chunk_ids = HashSet::<u16>::with_capacity(expected_total as usize);
+    for chunk in chunks {
+        if chunk.total != expected_total {
+            return Err(RestoreError::TotalMismatch {
+                reference_chunk: chunks[0].clone(),
+                clashing_chunk: chunk.clone(),
+            });
+        }
+        actual_chunk_ids.insert(chunk.id);
+    }
+    let expected_chunk_ids: HashSet<u16> = (1..=expected_total).collect();
+    if actual_chunk_ids == expected_chunk_ids {
+        return Ok(());
+    }
+    if actual_chunk_ids.is_subset(&expected_chunk_ids) {
+        let missing_ids = expected_chunk_ids
+            .difference(&actual_chunk_ids)
+            .cloned()
+            .collect::<Vec<u16>>();
+        return Err(RestoreError::MissingChunk {
+            expected_total,
+            missing_chunk_ids: missing_ids,
+        });
+    }
+    if actual_chunk_ids.is_superset(&expected_chunk_ids) {
+        let too_many_ids = actual_chunk_ids
+            .difference(&expected_chunk_ids)
+            .cloned()
+            .collect::<Vec<u16>>();
+        return Err(RestoreError::TooManyChunks {
+            expected_total,
+            unexpected_chunk_ids: too_many_ids,
+        });
+    }
+    Ok(())
 }
 
 /// Parse `chunk` string to extract id/total fields
@@ -71,7 +200,7 @@ pub fn parse(chunk: &str) -> Result<EncodedChunk, ChunkParseError> {
 }
 
 #[cfg(test)]
-mod chunk_tests {
+mod parse_tests {
     use super::*;
 
     #[test]
@@ -106,5 +235,96 @@ mod chunk_tests {
     fn decode_bad_separator_test() {
         let expected = Err(ChunkParseError::BadSeparator);
         assert_eq!(parse("011BA002abcdef"), expected);
+    }
+}
+
+#[cfg(test)]
+mod range_tests {
+    use super::*;
+
+    #[test]
+    fn range_ok_test() {
+        let total_number_chunks: u16 = 37;
+        let first_chunk = EncodedChunk {
+            id: 1,
+            total: total_number_chunks,
+            payload: String::from("payload1"),
+        };
+        // Create many chunks with proper data
+        let chunks: Vec<EncodedChunk> = (1..=total_number_chunks)
+            .map(|i| EncodedChunk {
+                id: i,
+                payload: format!("payload{}", i),
+                ..first_chunk
+            })
+            .collect();
+
+        assert!(check_chunk_range(&chunks).is_ok());
+    }
+
+    #[test]
+    fn range_missing_chunk_test() {
+        let chunks: Vec<EncodedChunk> = vec![
+            EncodedChunk {
+                id: 1,
+                total: 3,
+                payload: String::from("payload1"),
+            },
+            EncodedChunk {
+                id: 2,
+                total: 3,
+                payload: String::from("payload2"),
+            }, // missing third chunk
+        ];
+        let range_check = check_chunk_range(&chunks);
+        let error = Err(RestoreError::MissingChunk {
+            expected_total: 3,
+            missing_chunk_ids: vec![3],
+        });
+        assert_eq!(range_check, error);
+    }
+
+    #[test]
+    fn range_too_many_chunks_test() {
+        let chunks: Vec<EncodedChunk> = vec![
+            EncodedChunk {
+                id: 1,
+                total: 1,
+                payload: String::from("payload1"),
+            },
+            // "Chunk 2 of 1"
+            EncodedChunk {
+                id: 2,
+                total: 1,
+                payload: String::from("payload2"),
+            },
+        ];
+        let range_check = check_chunk_range(&chunks);
+        let error = Err(RestoreError::TooManyChunks {
+            expected_total: 1,
+            unexpected_chunk_ids: vec![2],
+        });
+        assert_eq!(range_check, error);
+    }
+
+    #[test]
+    fn range_total_mismatch_test() {
+        let reference = EncodedChunk {
+            id: 1,
+            total: 3,
+            payload: String::from("payload1"),
+        };
+        let clashing = EncodedChunk {
+            id: 2,
+            total: 4,
+            payload: String::from("payload2"),
+        };
+        let chunks: Vec<EncodedChunk> = vec![reference.clone(), clashing.clone()];
+        let range_check = check_chunk_range(&chunks);
+        let error = Err(RestoreError::TotalMismatch {
+            reference_chunk: reference,
+            clashing_chunk: clashing,
+        });
+        assert_eq!(range_check, error);
     }
 }

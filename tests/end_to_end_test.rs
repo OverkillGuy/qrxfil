@@ -16,14 +16,14 @@
 // <https://www.gnu.org/licenses/>.
 
 use assert_cmd::Command;
-use assert_fs::fixture::ChildPath;
-use assert_fs::prelude::*;
+use assert_fs::{fixture::ChildPath, prelude::*};
 use predicates::prelude::*;
-use rand::prelude::SliceRandom;
-use rand::Rng;
-use std::fs;
-use std::io::Write;
-use std::path::{Path, PathBuf};
+use rand::{prelude::SliceRandom, Rng};
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+};
 use test_case::test_case;
 
 fn random_file_at(file_path: &ChildPath, file_size_bytes: i32) {
@@ -73,7 +73,7 @@ fn decode_qr_folder_to_file(files_to_decode: Vec<PathBuf>, decoded_filepath: &Pa
             .write_all(decoded_string.as_bytes())
             .expect("Error writing QR decode file");
         decoded_file
-            .write("\n".as_bytes())
+            .write_all("\n".as_bytes())
             .expect("Error writing QR decode file");
     }
 }
@@ -201,3 +201,43 @@ fn out_of_order_chunk_scanning() {
     // clean up the temp folder
     temp.close().expect("Error deleting temporary folder");
 }
+
+#[test]
+// Scenario: Restoring with a missing chunk errors out
+fn missing_chunk_error() {
+    // Given a file with a few KB of random data
+    let temp = assert_fs::TempDir::new().unwrap();
+    let input_file = temp.child("to_send.bin");
+    let output_folder = temp.child("output_qrs");
+
+    // Fill input file with random data
+    random_file_at(&input_file, 4 * 1024);
+
+    // And qrxfil ran in exfil-mode with input filename + output folder
+    run_qrxfil_assert_success(input_file.path(), output_folder.path());
+
+    let decoded_filepath = temp.child("qr_decoded.txt");
+    let mut files_to_decode = read_folder_sorted(output_folder.path());
+    // But missing the first chunk
+    files_to_decode.remove(0);
+
+    decode_qr_folder_to_file(files_to_decode, decoded_filepath.path());
+    // When running qrxfil in decode-mode
+    let restored_file = temp.child("restored.bin");
+
+    let mut cmd = Command::cargo_bin("qrxfil").expect("Error find qrxfil command");
+    let args = [
+        "restore",
+        decoded_filepath.path().to_str().unwrap(),
+        restored_file.path().to_str().unwrap(),
+    ];
+    cmd.args(&args)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("missing chunks: [1]"));
+
+    // clean up the temp folder
+    temp.close().expect("Error deleting temporary folder");
+}
+
+// TODO trigger parser::RestoreError's other enum cases (TooManyChunks, ChunkDecodeError, TotalMismatch) as unittest
