@@ -77,10 +77,28 @@ impl Display for RestoreError {
                 missing_chunk_ids,
             } => write!(
                 f,
-                "Missing some chunks! Expected to see {} chunks, but missing chunks: {:?}",
+                "Missing some chunks! Expected to see {} chunks, \
+		 but missing chunks: {:?}",
                 expected_total, missing_chunk_ids
             ),
-            _ => todo!(),
+            RestoreError::TotalMismatch {
+                reference_chunk,
+                clashing_chunk,
+            } => write!(
+                f,
+                "A chunk reported a total that didn't match the expected total. \
+                 Reference chunk said {} chunks total, clashing chunk said {}",
+                reference_chunk.total, clashing_chunk.total
+            ),
+            RestoreError::TooManyChunks {
+                expected_total,
+                unexpected_chunk_ids,
+            } => write!(
+                f,
+                "Too many chunks were found! Expected {} chunks, \
+		 found extra chunks {:?}",
+                expected_total, unexpected_chunk_ids
+            ),
         }
     }
 }

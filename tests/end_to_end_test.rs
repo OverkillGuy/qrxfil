@@ -239,3 +239,5 @@ fn missing_chunk_error() {
     // clean up the temp folder
     temp.close().expect("Error deleting temporary folder");
 }
+
+// TODO trigger parser::RestoreError's other enum cases (TooManyChunks, ChunkDecodeError, TotalMismatch) as unittest
