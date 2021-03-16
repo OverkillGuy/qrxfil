@@ -9,6 +9,9 @@ The codes contain metadata about chunk number (e.g. "07 of 78") to
 enable out-of-order scanning.
 
 
+#+caption: qrxfil sample workflow in airgapped environment
+[[file:qrxfil_description.png]]
+
 
 * Dependencies
 
