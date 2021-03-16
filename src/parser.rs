@@ -65,8 +65,23 @@ pub enum RestoreError {
 }
 
 impl Display for RestoreError {
-    fn fmt(&self, _f: &mut fmt::Formatter) -> fmt::Result {
-        todo!()
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            RestoreError::ChunkDecodeError { raw_chunk, error } => write!(
+                f,
+                "Error decoding chunk! Error was: {:?} for chunk '{}'",
+                error, raw_chunk
+            ),
+            RestoreError::MissingChunk {
+                expected_total,
+                missing_chunk_ids,
+            } => write!(
+                f,
+                "Missing some chunks! Expected to see {} chunks, but missing chunks: {:?}",
+                expected_total, missing_chunk_ids
+            ),
+            _ => todo!(),
+        }
     }
 }
 
@@ -77,6 +92,17 @@ pub enum ChunkParseError {
     TotalMissing,
     PayloadMissing,
     BadSeparator,
+}
+
+impl Display for ChunkParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ChunkParseError::IdMissing => write!(f, "Chunk identifier not found"),
+            ChunkParseError::TotalMissing => write!(f, "Total number of chunks not found"),
+            ChunkParseError::PayloadMissing => write!(f, "Chunk has no payload"),
+            ChunkParseError::BadSeparator => write!(f, "Chunk id/total separator incorrect"),
+        }
+    }
 }
 
 /// Check the given chunks contain all the pieces to restore

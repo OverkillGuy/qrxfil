@@ -195,14 +195,15 @@ fn decode(input_path: &Path, restored_path: &Path) -> Result<(), parser::Restore
     Ok(())
 }
 
-fn main() -> Result<(), parser::RestoreError> {
+fn main() {
     let matches = get_args();
-    let result = run(&matches);
-    if let Err(ref e) = result {
-        eprintln!("{}", e);
-    }
-
-    result
+    std::process::exit(match run(&matches) {
+        Ok(_) => 0,
+        Err(err) => {
+            eprintln!("{}", err);
+            1
+        }
+    });
 }
 
 fn get_args() -> ArgMatches<'static> {

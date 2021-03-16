@@ -234,9 +234,8 @@ fn missing_chunk_error() {
     cmd.args(&args)
         .assert()
         .failure()
-        .stderr(predicate::str::contains(
-            "MissingChunk { expected_total: 6, missing_chunk_ids: [1] }",
-        ));
+        .stderr(predicate::str::contains("missing chunks: [1]"));
+
     // clean up the temp folder
     temp.close().expect("Error deleting temporary folder");
 }
