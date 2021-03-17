@@ -47,19 +47,19 @@ jobs:
           command: test
           args: --all-features
 
-  pre-commit:  # Includes clippy and fmt
-    name: Pre-commit hooks
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-    - uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
-        override: true
-        profile: minimal
-    - uses: pre-commit/action@v2.0.0
-      with:
-        extra_args: --all --all-files
+  # pre-commit:  # Includes clippy and fmt
+  #   name: Pre-commit hooks
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #   - uses: actions/checkout@v2
+  #   - uses: actions-rs/toolchain@v1
+  #     with:
+  #       toolchain: stable
+  #       override: true
+  #       profile: minimal
+  #   - uses: pre-commit/action@v2.0.0
+  #     with:
+  #       extra_args: --all --all-files
 
   docs:
     name: Docs
