@@ -55,6 +55,11 @@ pub enum RestoreError {
         /// The chunk we found a different total than reference
         clashing_chunk: EncodedChunk,
     },
+    /// Chunks were found twice but with mismatching payload
+    MismatchingDuplicateChunk {
+        /// The id of chunks we found multiple times with mismatch
+        mismatching_chunk_ids: Vec<u16>,
+    },
     /// A chunk could not be parsed
     ChunkDecodeError {
         /// What went wrong
@@ -80,6 +85,13 @@ impl Display for RestoreError {
                 "Missing some chunks! Expected to see {} chunks, \
 		 but missing chunks: {:?}",
                 expected_total, missing_chunk_ids
+            ),
+            RestoreError::MismatchingDuplicateChunk {
+                mismatching_chunk_ids,
+            } => write!(
+                f,
+                "Chunks were found multiple times with clashing payload! Clashing: {:?}",
+                mismatching_chunk_ids
             ),
             RestoreError::TotalMismatch {
                 reference_chunk,
@@ -303,6 +315,47 @@ mod range_tests {
         let error = Err(RestoreError::TooManyChunks {
             expected_total: 1,
             unexpected_chunk_ids: vec![2],
+        });
+        assert_eq!(range_check, error);
+    }
+
+    #[test]
+    fn range_duplicate_chunk_skipped_test() {
+        let payload = String::from("payload1");
+        let chunks: Vec<EncodedChunk> = vec![
+            EncodedChunk {
+                id: 1,
+                total: 1,
+                payload: payload.clone(),
+            },
+            // "Chunk 2 of 1"
+            EncodedChunk {
+                id: 1,
+                total: 1,
+                payload: payload.clone(),
+            },
+        ];
+        assert!(check_chunk_range(&chunks).is_ok());
+    }
+
+    #[test]
+    fn range_corrupted_duplicate_chunk_error_test() {
+        let chunks: Vec<EncodedChunk> = vec![
+            EncodedChunk {
+                id: 1,
+                total: 1,
+                payload: String::from("payload1"),
+            },
+            // "Chunk 2 of 1"
+            EncodedChunk {
+                id: 1,
+                total: 1,
+                payload: String::from("mismatching payload"),
+            },
+        ];
+        let range_check = check_chunk_range(&chunks);
+        let error = Err(RestoreError::MismatchingDuplicateChunk {
+            mismatching_chunk_ids: vec![1],
         });
         assert_eq!(range_check, error);
     }
