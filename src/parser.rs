@@ -30,6 +30,7 @@ pub struct EncodedChunk {
     pub payload: String,
 }
 
+#[allow(dead_code)] // temporary while feature being implemented
 #[derive(Debug, PartialEq, Eq)]
 /// Things that can go wrong when restoring a chunked file
 pub enum RestoreError {
