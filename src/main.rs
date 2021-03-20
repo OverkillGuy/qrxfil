@@ -42,6 +42,7 @@ extern crate clap;
 extern crate image;
 extern crate qrcode;
 
+mod chunk_iterator;
 mod parser;
 mod payload_size;
 
