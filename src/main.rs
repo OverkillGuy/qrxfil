@@ -174,7 +174,7 @@ fn decode(input_path: &Path, restored_path: &Path) -> Result<(), parser::Restore
     // re-sort the chunks for out-of-order scanning
     chunks.sort_by_key(|chunk| chunk.id);
 
-    parser::check_chunk_range(&chunks)?;
+    let chunks = parser::check_chunk_range(&chunks)?;
 
     let concatenated_chunk_payloads = chunks
         .iter()

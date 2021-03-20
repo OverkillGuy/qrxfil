@@ -241,3 +241,99 @@ fn missing_chunk_error() {
 }
 
 // TODO trigger parser::RestoreError's other enum cases (TooManyChunks, ChunkDecodeError, TotalMismatch) as unittest
+
+#[test]
+// Scenario: Restoring with a duplicate chunk succeeds
+fn duplicate_chunk_skips() {
+    // Given a file with a few KB of random data
+    let temp = assert_fs::TempDir::new().unwrap();
+    let input_file = temp.child("to_send.bin");
+    let output_folder = temp.child("output_qrs");
+
+    // Fill input file with random data
+    random_file_at(&input_file, 4 * 1024);
+
+    // And qrxfil ran in exfil-mode with input filename + output folder
+    run_qrxfil_assert_success(input_file.path(), output_folder.path());
+
+    let decoded_filepath = temp.child("qr_decoded.txt");
+    let mut files_to_decode = read_folder_sorted(output_folder.path());
+    // But with duplicate chunk
+    files_to_decode.push(files_to_decode[0].clone());
+
+    decode_qr_folder_to_file(files_to_decode, decoded_filepath.path());
+    // When running qrxfil in decode-mode
+    let restored_file = temp.child("restored.bin");
+
+    let mut cmd = Command::cargo_bin("qrxfil").expect("Error find qrxfil command");
+    let args = [
+        "restore",
+        decoded_filepath.path().to_str().unwrap(),
+        restored_file.path().to_str().unwrap(),
+    ];
+
+    // Then it completes sucessfully
+    cmd.args(&args).assert().success();
+
+    let (md5_restored, md5_reference) =
+        md5sum_two_files(restored_file.path(), input_file.path(), temp.path());
+    // And decoded file is identical to original
+    assert_eq!(
+        md5_restored, md5_reference,
+        "Restored md5sum didn't match reference file before exfil",
+    );
+    // clean up the temp folder
+    temp.close().expect("Error deleting temporary folder");
+}
+
+#[test]
+// Scenario: Restoring with a corrupted duplicate chunk fails
+fn corrupt_duplicate_chunk_fails() {
+    // Given a file with a few KB of random data
+    let temp = assert_fs::TempDir::new().unwrap();
+    let input_file = temp.child("to_send.bin");
+    let output_folder = temp.child("output_qrs");
+
+    // Fill input file with random data
+    random_file_at(&input_file, 4 * 1024);
+
+    // And qrxfil ran in exfil-mode with input filename + output folder
+    run_qrxfil_assert_success(input_file.path(), output_folder.path());
+
+    let decoded_filepath = temp.child("qr_decoded.txt");
+    let files_to_decode = read_folder_sorted(output_folder.path());
+
+    decode_qr_folder_to_file(files_to_decode, decoded_filepath.path());
+    // But with corrupted duplicate chunk
+    let decoded_string = fs::read_to_string(decoded_filepath.path()).unwrap();
+
+    let mut file = fs::OpenOptions::new()
+        .write(true)
+        .append(true)
+        .open(decoded_filepath.path())
+        .unwrap();
+
+    if let Err(e) = writeln!(file, "{}", &decoded_string[..30]) {
+        eprintln!("Couldn't write to file: {}", e);
+    }
+
+    // When running qrxfil in decode-mode
+    let restored_file = temp.child("restored.bin");
+
+    let mut cmd = Command::cargo_bin("qrxfil").expect("Error find qrxfil command");
+    let args = [
+        "restore",
+        decoded_filepath.path().to_str().unwrap(),
+        restored_file.path().to_str().unwrap(),
+    ];
+
+    // Then it fails with an error about clashing payload
+    cmd.args(&args)
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "Chunks were found multiple times with clashing payload",
+        ));
+    // clean up the temp folder
+    temp.close().expect("Error deleting temporary folder");
+}

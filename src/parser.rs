@@ -19,8 +19,9 @@
 //!
 //! Parse encoded string into a struct for reassembly
 
-use std::{collections::HashSet, fmt, fmt::Display};
-// use std::iter::FromIterator;
+use itertools::Itertools;
+use std::collections::{BTreeMap, HashSet};
+use std::fmt;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// A chunk that's already encoded, with base64 payload
@@ -55,6 +56,12 @@ pub enum RestoreError {
         /// The chunk we found a different total than reference
         clashing_chunk: EncodedChunk,
     },
+    /// Chunks were found twice but with mismatching payload
+    MismatchingDuplicateChunk {
+        /// Chunks we found multiple times with mismatch, as an array
+        /// of (reference chunk, payload that mismatched)
+        mismatching_chunks: Vec<(EncodedChunk, String)>,
+    },
     /// A chunk could not be parsed
     ChunkDecodeError {
         /// What went wrong
@@ -64,7 +71,7 @@ pub enum RestoreError {
     },
 }
 
-impl Display for RestoreError {
+impl fmt::Display for RestoreError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             RestoreError::ChunkDecodeError { raw_chunk, error } => write!(
@@ -80,6 +87,11 @@ impl Display for RestoreError {
                 "Missing some chunks! Expected to see {} chunks, \
 		 but missing chunks: {:?}",
                 expected_total, missing_chunk_ids
+            ),
+            RestoreError::MismatchingDuplicateChunk { mismatching_chunks } => write!(
+                f,
+                "Chunks were found multiple times with clashing payload! Clashing: {:?}",
+                mismatching_chunks
             ),
             RestoreError::TotalMismatch {
                 reference_chunk,
@@ -112,7 +124,7 @@ pub enum ChunkParseError {
     BadSeparator,
 }
 
-impl Display for ChunkParseError {
+impl fmt::Display for ChunkParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ChunkParseError::IdMissing => write!(f, "Chunk identifier not found"),
@@ -123,12 +135,48 @@ impl Display for ChunkParseError {
     }
 }
 
+/// Checks that chunks with the same ID are identical in payload
+/// Returns the chunk contents if all are identical, or
+/// RestoreError::MismatchingDuplicateChunk otherwise.
+/// Assumes the chunks are already sorted by ID (groupable)
+fn collapse_chunks(chunks: &[EncodedChunk]) -> Result<Vec<EncodedChunk>, RestoreError> {
+    let _expected_total: u16 = chunks[0].total;
+
+    let mut chunks_out = Vec::<EncodedChunk>::new();
+    // Sort the chunks to group them
+    chunks_out.sort_by_key(|chunk| chunk.id);
+
+    let mut mismatching = Vec::<(EncodedChunk, String)>::new();
+    // Group by chunk id
+    for (_chunk_id, duplicate_chunks) in &chunks.into_iter().group_by(|chunk| chunk.id) {
+        let mut duplicate_chunks_iter = duplicate_chunks.into_iter();
+        let reference_chunk = match duplicate_chunks_iter.next() {
+            Some(v) => v,
+            None => panic!("Couldn't get 1 item per groupby"),
+        };
+        for duplicate_chunk in duplicate_chunks_iter {
+            if duplicate_chunk.payload != reference_chunk.payload {
+                mismatching.push((reference_chunk.clone(), duplicate_chunk.payload.clone()));
+            }
+        }
+        chunks_out.push(reference_chunk.clone());
+    }
+    match mismatching.is_empty() {
+        true => return Ok(chunks_out.to_vec()),
+        false => {
+            return Err(RestoreError::MismatchingDuplicateChunk {
+                mismatching_chunks: mismatching,
+            })
+        }
+    }
+}
+
 /// Check the given chunks contain all the pieces to restore
 ///
-/// Ensures that all chunks between 1 and `total`] are found in `chunks`
-pub fn check_chunk_range(chunks: &[EncodedChunk]) -> Result<(), RestoreError> {
+/// Ensures that all chunks between 1 and `total` are found in `chunks`
+pub fn check_chunk_range(chunks: &[EncodedChunk]) -> Result<Vec<EncodedChunk>, RestoreError> {
     let expected_total: u16 = chunks[0].total;
-    let mut actual_chunk_ids = HashSet::<u16>::with_capacity(expected_total as usize);
+    let mut actual_chunk_ids = BTreeMap::<u16, EncodedChunk>::new(); // with_capacity(expected_total as usize)
     for chunk in chunks {
         if chunk.total != expected_total {
             return Err(RestoreError::TotalMismatch {
@@ -136,15 +184,23 @@ pub fn check_chunk_range(chunks: &[EncodedChunk]) -> Result<(), RestoreError> {
                 clashing_chunk: chunk.clone(),
             });
         }
-        actual_chunk_ids.insert(chunk.id);
+        actual_chunk_ids.insert(chunk.id, chunk.clone());
     }
     let expected_chunk_ids: HashSet<u16> = (1..=expected_total).collect();
-    if actual_chunk_ids == expected_chunk_ids {
-        return Ok(());
+    let actual_chunk_ids_set: HashSet<u16> = actual_chunk_ids.keys().cloned().collect();
+    // Do we have enough chunks?
+    println!(
+        "Should have {:?}, got {:?}",
+        expected_chunk_ids, actual_chunk_ids_set
+    );
+    // We have enough chunks, check duplicates for corrupted payload
+    if actual_chunk_ids_set == expected_chunk_ids {
+        return collapse_chunks(&chunks);
     }
-    if actual_chunk_ids.is_subset(&expected_chunk_ids) {
+
+    if actual_chunk_ids_set.is_subset(&expected_chunk_ids) {
         let missing_ids = expected_chunk_ids
-            .difference(&actual_chunk_ids)
+            .difference(&actual_chunk_ids_set)
             .cloned()
             .collect::<Vec<u16>>();
         return Err(RestoreError::MissingChunk {
@@ -152,8 +208,9 @@ pub fn check_chunk_range(chunks: &[EncodedChunk]) -> Result<(), RestoreError> {
             missing_chunk_ids: missing_ids,
         });
     }
-    if actual_chunk_ids.is_superset(&expected_chunk_ids) {
-        let too_many_ids = actual_chunk_ids
+    // Too many chunks? (bigger ID than total)
+    if actual_chunk_ids_set.is_superset(&expected_chunk_ids) {
+        let too_many_ids = actual_chunk_ids_set
             .difference(&expected_chunk_ids)
             .cloned()
             .collect::<Vec<u16>>();
@@ -162,7 +219,7 @@ pub fn check_chunk_range(chunks: &[EncodedChunk]) -> Result<(), RestoreError> {
             unexpected_chunk_ids: too_many_ids,
         });
     }
-    Ok(())
+    Ok(vec![])
 }
 
 /// Parse `chunk` string to extract id/total fields
@@ -303,6 +360,48 @@ mod range_tests {
         let error = Err(RestoreError::TooManyChunks {
             expected_total: 1,
             unexpected_chunk_ids: vec![2],
+        });
+        assert_eq!(range_check, error);
+    }
+
+    #[test]
+    fn range_duplicate_chunk_skipped_test() {
+        let payload = String::from("payload1");
+        let chunks: Vec<EncodedChunk> = vec![
+            EncodedChunk {
+                id: 1,
+                total: 1,
+                payload: payload.clone(),
+            },
+            // "Chunk 2 of 1"
+            EncodedChunk {
+                id: 1,
+                total: 1,
+                payload: payload.clone(),
+            },
+        ];
+        assert!(check_chunk_range(&chunks).is_ok());
+    }
+
+    #[test]
+    fn range_corrupted_duplicate_chunk_error_test() {
+        let bad_payload = String::from("mismatching payload");
+        let chunks: Vec<EncodedChunk> = vec![
+            EncodedChunk {
+                id: 1,
+                total: 1,
+                payload: String::from("payload1"),
+            },
+            // "Chunk 2 of 1"
+            EncodedChunk {
+                id: 1,
+                total: 1,
+                payload: bad_payload.clone(),
+            },
+        ];
+        let range_check = check_chunk_range(&chunks);
+        let error = Err(RestoreError::MismatchingDuplicateChunk {
+            mismatching_chunks: vec![(chunks[0].clone(), bad_payload.clone())],
         });
         assert_eq!(range_check, error);
     }
