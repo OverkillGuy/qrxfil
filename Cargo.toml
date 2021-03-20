@@ -14,6 +14,8 @@ qrcode = "0.12"
 image = "^0.23"
 base64 = "0.13.0"
 clap = {version = "2.33.3", features = ["yaml"]}
+itertools = "^0.10"
+
 
 [dev-dependencies]
 rand = "0.8.3"

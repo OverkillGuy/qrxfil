@@ -303,6 +303,7 @@ fn corrupt_duplicate_chunk_fails() {
     let decoded_filepath = temp.child("qr_decoded.txt");
     let files_to_decode = read_folder_sorted(output_folder.path());
 
+    decode_qr_folder_to_file(files_to_decode, decoded_filepath.path());
     // But with corrupted duplicate chunk
     let decoded_string = fs::read_to_string(decoded_filepath.path()).unwrap();
 
@@ -316,7 +317,6 @@ fn corrupt_duplicate_chunk_fails() {
         eprintln!("Couldn't write to file: {}", e);
     }
 
-    decode_qr_folder_to_file(files_to_decode, decoded_filepath.path());
     // When running qrxfil in decode-mode
     let restored_file = temp.child("restored.bin");
 
@@ -327,19 +327,13 @@ fn corrupt_duplicate_chunk_fails() {
         restored_file.path().to_str().unwrap(),
     ];
 
-    // Then it completes sucessfully
+    // Then it fails with an error about clashing payload
     cmd.args(&args)
         .assert()
         .failure()
-        .stderr(predicate::str::contains("corrupt duplicate chunks: [1]"));
-
-    let (md5_restored, md5_reference) =
-        md5sum_two_files(restored_file.path(), input_file.path(), temp.path());
-    // And decoded file is identical to original
-    assert_eq!(
-        md5_restored, md5_reference,
-        "Restored md5sum didn't match reference file before exfil",
-    );
+        .stderr(predicate::str::contains(
+            "Chunks were found multiple times with clashing payload",
+        ));
     // clean up the temp folder
     temp.close().expect("Error deleting temporary folder");
 }
