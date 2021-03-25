@@ -43,6 +43,7 @@ extern crate image;
 extern crate qrcode;
 
 mod parser;
+mod payload_size;
 
 /// Encodes `input_file` with qrxfil into QR files inside `output_folder`
 ///
