@@ -93,8 +93,8 @@ fn encode(input_file: &Path, output_folder: &Path) {
 
     let chunk_size: usize = 1024; // 1 KB
 
-    #[allow(clippy::cast_precision_loss)]
-    let chunk_totals = (base64_filesize_bytes as f64 / (chunk_size as f64)).ceil(); // round UP on f64 division
+    let chunk_totals =
+        payload_size::number_chunks_overhead(base64_filesize_bytes, chunk_size as u16);
     println!(
         "File {:?}. base64 size: {} bytes = {} chunks of 1KB",
         input_file, base64_filesize_bytes, chunk_totals
