@@ -20,12 +20,14 @@
 use tide::prelude::*;
 use tide::Request;
 
+#[allow(non_snake_case)]
 #[derive(Deserialize, Debug)]
 #[serde(default)]
 struct Scan {
-    // content: Vec<u8>, // String
+    content: String,
     raw: String,
     format: String,
+
     errorCorrectionLevel: String,
     timestamp: String,
 }
@@ -33,7 +35,7 @@ struct Scan {
 impl Default for Scan {
     fn default() -> Self {
         Self {
-            // content: [1, 2, 3].to_vec(), // String::from("NosuchPayload")
+            content: String::from("NosuchPayload"),
             raw: String::from("NORAWHERE"),
             format: String::from("None"),
             errorCorrectionLevel: String::from("N/A"),
@@ -45,7 +47,7 @@ impl Default for Scan {
 async fn scan(mut req: Request<()>) -> tide::Result {
     let s: Scan = req.body_json().await?;
     println!("Scan {:?}", s);
-    Ok(format!("Scanned: {}", s.raw).into())
+    Ok(format!("Scanned: {}", s.content).into())
 }
 
 #[async_std::main]
