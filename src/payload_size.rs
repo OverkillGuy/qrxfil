@@ -20,13 +20,13 @@
 /// Size of a header in bytes
 /// Three digits twice (id / total) plus delimiter string "OF" e.g.
 /// 013OF078
-const _HEADER_SIZE_BYTES: u8 = 8;
+const HEADER_SIZE_BYTES: u64 = 8;
 
 /// How many chunks of `chunk_size_bytes` to send for a given payload of `payload_size_bytes`
 /// Taking into account the overhead of HEADER_SIZE_BYTES per chunk
-#[allow(dead_code)] // Temporary while function under development
-fn number_chunks_overhead(_payload_size_bytes: u64, _chunk_size_bytes: u16) -> u16 {
-    1
+fn number_chunks_overhead(payload_size_bytes: u64, chunk_size_bytes: u16) -> u64 {
+    let chunk_payload_size_bytes: u64 = (chunk_size_bytes as u64) - HEADER_SIZE_BYTES;
+    ((payload_size_bytes as f64) / (chunk_payload_size_bytes as f64)).ceil() as u64
 }
 
 #[cfg(test)]
