@@ -26,15 +26,15 @@ impl<T> Iterator for BufferedIterator<T>
 where
     T: BufRead,
 {
-    type Item = io::Result<Vec<u8>>;
+    type Item = io::Result<String>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut buf = Vec::default();
+        let mut buf = String::new();
         match self
             .reader
             .by_ref()
             .take(self.chunk_size)
-            .read_to_end(&mut buf)
+            .read_to_string(&mut buf)
         {
             Ok(0) => None,
             Ok(_n) => Some(Ok(buf)),
@@ -51,12 +51,11 @@ where
 {
     reader: BufferedIterator<T>,
     /// How big is the content that can be read
-    _total_size: u64,
+    _total_size: u64, // TODO use this to calculate chunk total!
     /// How many chunks are there in total
     chunk_total: u16,
     /// Chunk counter incremented on each next()
     current_chunk_id: u16,
-    // base64_writer: // TODO
 }
 
 impl<T> ChunkIterator<T>
@@ -83,11 +82,15 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.reader.next() {
-            None => panic!("Empty iterator"),
-            Some(Ok(buf)) => Some(Ok(format!(
-                "{:03}OF{:03}{:?}",
-                self.current_chunk_id, self.chunk_total, buf
-            ))),
+            None => None,
+            Some(Ok(buf)) => {
+                let chunk_string = format!(
+                    "{:03}OF{:03}{}",
+                    self.current_chunk_id, self.chunk_total, buf
+                );
+                self.current_chunk_id += 1;
+                Some(Ok(chunk_string))
+            }
             Some(Err(e)) => Some(Err(e)),
         }
     }
@@ -100,8 +103,8 @@ mod iterator_tests {
     #[test]
     fn read_ok_twice_noleftover_test() {
         // Given a 10 byte payload
-        let payload = b"foobarbaz!";
-        let cursor = io::Cursor::<Vec<u8>>::new(payload.to_vec());
+        let payload: String = String::from("foobarbaz!");
+        let cursor = io::Cursor::new(payload.clone());
         // And an iterator taking 5 bytes
         let mut iter = BufferedIterator::new(cursor, 5);
 
@@ -127,8 +130,8 @@ mod iterator_tests {
     #[test]
     fn read_ok_twice_leftover_test() {
         // Given a 11 byte payload
-        let payload = b"foobarmore!";
-        let cursor = io::Cursor::<Vec<u8>>::new(payload.to_vec());
+        let payload: String = String::from("foobarmore!");
+        let cursor = io::Cursor::new(payload.clone());
         // And an iterator taking 6 bytes
         let mut iter = BufferedIterator::new(cursor, 6);
 
@@ -159,10 +162,11 @@ mod chunk_iterator_tests {
     use std::convert::TryInto;
 
     #[test]
+    // Scenario: Reading 2 chunks with no leftover data
     fn read_ok_twice_noleftover_test() {
         // Given a 10 byte payload
-        let payload = "foobarbaz!";
-        let cursor = io::Cursor::<Vec<u8>>::new(payload.as_bytes().to_vec());
+        let payload = String::from("foobarbaz!");
+        let cursor = io::Cursor::new(payload.clone());
         // And an iterator taking 5 bytes
         let str_iter = BufferedIterator::new(cursor, 5);
         let mut chunk_iter = ChunkIterator::new(str_iter, payload.len().try_into().unwrap());
@@ -175,42 +179,44 @@ mod chunk_iterator_tests {
         };
         // Then the first two yield Some payload
         assert_eq!(res, ["001OF010", &payload[..5]].concat());
-        // let res2 = match chunk_iter.next() {
-        //     None => panic!("iterator returned no data"),
-        //     Some(Err(e)) => panic!(e),
-        //     Some(Ok(buf)) => buf,
-        // };
-        // assert_eq!(res2, payload[5..]);
-        // // But the third returns None
-        // let res3 = chunk_iter.next();
-        // assert!(res3.is_none());
+        let res2 = match chunk_iter.next() {
+            None => panic!("iterator returned no data"),
+            Some(Err(e)) => panic!(e),
+            Some(Ok(buf)) => buf,
+        };
+        assert_eq!(res2, ["002OF010", &payload[5..10]].concat());
+        // But the third returns None for empty iterator
+        let res3 = chunk_iter.next();
+        assert!(res3.is_none());
     }
 
-    // #[test]
-    // fn read_ok_twice_leftover_test() {
-    //     // Given a 11 byte payload
-    //     let payload = b"foobarmore!";
-    //     let cursor = io::Cursor::<Vec<u8>>::new(payload.to_vec());
-    //     // And an iterator taking 6 bytes
-    //     let mut iter = ChunkIterator::new(cursor, 6);
+    #[test]
+    // Scenario: Reading a chunk with leftover data on second read
+    fn read_ok_twice_leftover_test() {
+        // Given a 11 byte payload
+        let payload = String::from("foobarmore!");
+        let cursor = io::Cursor::new(payload.clone());
+        // And an iterator taking 6 bytes
+        let str_iter = BufferedIterator::new(cursor, 6);
+        let mut chunk_iter = ChunkIterator::new(str_iter, payload.len().try_into().unwrap());
 
-    //     // When I call iterator.next() thrice
-    //     let res = match iter.next() {
-    //         None => panic!("iterator returned no data first time"),
-    //         Some(Err(e)) => panic!(e),
-    //         Some(Ok(buf)) => buf,
-    //     };
-    //     // Then the first yields Some payload
-    //     assert_eq!(res, payload[..6]);
-    //     let res2 = match iter.next() {
-    //         None => panic!("iterator returned no data"),
-    //         Some(Err(e)) => panic!(e),
-    //         Some(Ok(buf)) => buf,
-    //     };
-    //     // And the second returns leftover payload
-    //     assert_eq!(res2, payload[6..]);
-    //     // But the third returns None
-    //     let res3 = iter.next();
-    //     assert!(res3.is_none());
-    // }
+        // When I call iterator.next() three times
+        let res = match chunk_iter.next() {
+            None => panic!("iterator returned no data first time"),
+            Some(Err(e)) => panic!(e),
+            Some(Ok(buf)) => buf,
+        };
+        // Then the first yields Some payload
+        assert_eq!(res, ["001OF010", &payload[..6]].concat());
+        let res2 = match chunk_iter.next() {
+            None => panic!("iterator returned no data"),
+            Some(Err(e)) => panic!(e),
+            Some(Ok(buf)) => buf,
+        };
+        // And the second returns the leftover payload
+        assert_eq!(res2, ["002OF010", &payload[6..]].concat());
+        // But the third returns None
+        let res3 = chunk_iter.next();
+        assert!(res3.is_none());
+    }
 }
