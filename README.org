@@ -110,4 +110,4 @@ and it's just a fun mis-application of technology.
 
 * License
 
-This project uses GPL-v3-or-later license, see file:LICENSE.txt
+This project uses GPL-v3-or-later license, see file =LICENSE.txt=

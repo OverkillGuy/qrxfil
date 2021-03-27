@@ -1,0 +1,21 @@
+#+TITLE: Changelog
+
+
+The format is based on [[https://keepachangelog.com/en/1.0.0/][Keep a Changelog]] but in [[https://orgmode.org][org-mode]] format, and
+this project adheres to [[https://semver.org/spec/v2.0.0.html][Semantic Versioning v2.0.0]] though it's a
+binary application not a library with a contract.
+
+* [Unreleased]
+
+
+* [0.1.0] - 2021-03-27
+
+Initial release
+
+** Added
+- =qrxfil= as debian package via =cargo deb=
+- =qrxfil exfil= command to split file into chunks
+- =qrxfil restore= command to restore decoded chunk strings into file
+- Out of order chunks restore OK [[https://github.com/OverkillGuy/qrxfil/issues/13][#13]]
+- Missing chunks error-out [[https://github.com/OverkillGuy/qrxfil/issues/14][#14]]
+- Duplicate chunks restore OK unless payload mismatches [[https://github.com/OverkillGuy/qrxfil/issues/17][#17]]
