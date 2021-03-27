@@ -31,6 +31,12 @@ pub struct EncodedChunk {
     pub payload: String,
 }
 
+impl fmt::Display for EncodedChunk {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:03}OF{:03}{}", self.id, self.total, self.payload)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 /// Things that can go wrong when restoring a chunked file
 pub enum RestoreError {

@@ -1,6 +1,8 @@
 use std::io;
 use std::io::{BufRead, Read};
 
+use crate::parser::EncodedChunk;
+
 #[allow(dead_code)] // Temporary while no consumer of this API
 /// An iterator for reading `chunk_size` bytes off the given `reader`
 pub struct BufferedIterator<T>
@@ -84,10 +86,12 @@ where
         match self.reader.next() {
             None => None,
             Some(Ok(buf)) => {
-                let chunk_string = format!(
-                    "{:03}OF{:03}{}",
-                    self.current_chunk_id, self.chunk_total, buf
-                );
+                let chunk = EncodedChunk {
+                    id: self.current_chunk_id,
+                    total: self.chunk_total,
+                    payload: buf,
+                };
+                let chunk_string = format!("{}", chunk);
                 self.current_chunk_id += 1;
                 Some(Ok(chunk_string))
             }
