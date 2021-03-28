@@ -82,7 +82,7 @@ impl<T> Iterator for ChunkIterator<T>
 where
     T: BufRead,
 {
-    type Item = io::Result<String>;
+    type Item = io::Result<EncodedChunk>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.reader.next() {
@@ -93,9 +93,8 @@ where
                     total: self.chunk_total,
                     payload: buf,
                 };
-                let chunk_string = format!("{}", chunk);
                 self.current_chunk_id += 1;
-                Some(Ok(chunk_string))
+                Some(Ok(chunk))
             }
             Some(Err(e)) => Some(Err(e)),
         }
@@ -180,16 +179,30 @@ mod chunk_iterator_tests {
         let res = match chunk_iter.next() {
             None => panic!("iterator returned no data first time"),
             Some(Err(e)) => panic!(e),
-            Some(Ok(buf)) => buf,
+            Some(Ok(i)) => i,
         };
         // Then the first two yield Some payload
-        assert_eq!(res, ["001OF002", &payload[..25]].concat());
+        assert_eq!(
+            res,
+            EncodedChunk {
+                id: 1,
+                total: 2,
+                payload: payload[..25].to_string()
+            }
+        );
         let res2 = match chunk_iter.next() {
             None => panic!("iterator returned no data"),
             Some(Err(e)) => panic!(e),
             Some(Ok(buf)) => buf,
         };
-        assert_eq!(res2, ["002OF002", &payload[25..]].concat());
+        assert_eq!(
+            res2,
+            EncodedChunk {
+                id: 2,
+                total: 2,
+                payload: payload[25..].to_string()
+            }
+        );
         // But the third returns None for empty iterator
         let res3 = chunk_iter.next();
         assert!(res3.is_none());
@@ -211,14 +224,28 @@ mod chunk_iterator_tests {
             Some(Ok(buf)) => buf,
         };
         // Then the first yields Some payload
-        assert_eq!(res, ["001OF002", &payload[..23]].concat());
+        assert_eq!(
+            res,
+            EncodedChunk {
+                id: 1,
+                total: 2,
+                payload: payload[..23].to_string()
+            }
+        );
         let res2 = match chunk_iter.next() {
             None => panic!("iterator returned no data"),
             Some(Err(e)) => panic!(e),
             Some(Ok(buf)) => buf,
         };
         // And the second returns the leftover payload
-        assert_eq!(res2, ["002OF002", &payload[23..]].concat());
+        assert_eq!(
+            res2,
+            EncodedChunk {
+                id: 2,
+                total: 2,
+                payload: payload[23..].to_string()
+            }
+        );
         // But the third returns None
         let res3 = chunk_iter.next();
         assert!(res3.is_none());

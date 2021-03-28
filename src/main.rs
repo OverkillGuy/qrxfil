@@ -108,22 +108,21 @@ fn encode(input_filename: &Path, output_folder: &Path) {
         chunk_total
     );
 
-    let mut chunk_id = 1;
-    for chunk in chunk_iter {
+    for c in chunk_iter {
+        let chunk = c.expect("Problem reading reader");
         // Encode some data into bits.
-        let code =
-            QrCode::new(chunk.unwrap().as_bytes()).expect("Error encoding chunk into QR code");
+        let code = QrCode::new(format!("{}", chunk).as_bytes())
+            .expect("Error encoding chunk into QR code");
 
         // Render the bits into an image.
         let image = code.render::<Luma<u8>>().build();
 
         // Save the image.
         image
-            .save(output_folder.join(format!("{:03}.png", chunk_id)))
+            .save(output_folder.join(format!("{:03}.png", chunk.id)))
             .expect("Error saving chunk's QR code file");
 
-        println!("Saving QR {:03}/{}", chunk_id, &chunk_total);
-        chunk_id += 1; // FIXME: Chunk ID & total are inside chunk_iter, moved
+        println!("Saving QR {:03}/{}", chunk.id, chunk.total);
     }
     println!(
         "Split file in {} QR chunks, in folder {:?}",
