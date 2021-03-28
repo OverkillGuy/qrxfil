@@ -3,7 +3,6 @@ use std::io::{BufRead, Read};
 
 use crate::parser::EncodedChunk;
 
-#[allow(dead_code)] // Temporary while no consumer of this API
 /// An iterator for reading `chunk_size` bytes off the given `reader`
 pub struct BufferedIterator<T>
 where
@@ -17,7 +16,6 @@ impl<T> BufferedIterator<T>
 where
     T: Read,
 {
-    #[allow(dead_code)] // Temporary while no consumer of this API
     /// Get a new iterator ready to read `chunk_size` bytes from `reader`
     pub fn new(reader: T, chunk_size: u64) -> Self {
         Self { reader, chunk_size }
@@ -53,9 +51,9 @@ where
 {
     reader: BufferedIterator<T>,
     /// How many chunks are there in total
-    chunk_total: u16,
+    pub chunk_total: u16,
     /// Chunk counter incremented on each next()
-    current_chunk_id: u16,
+    pub current_chunk_id: u16,
 }
 
 impl<T> ChunkIterator<T>

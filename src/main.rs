@@ -50,8 +50,8 @@ mod payload_size;
 ///
 /// `output_folder` (and parent directories) will be created if
 /// doesn't exist
-fn encode(input_file: &Path, output_folder: &Path) {
-    let mut input_file = match fs::File::open(input_file) {
+fn encode(input_filename: &Path, output_folder: &Path) {
+    let mut input_file = match fs::File::open(input_filename) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
     };
@@ -89,61 +89,45 @@ fn encode(input_file: &Path, output_folder: &Path) {
         .sync_data()
         .expect("Error syncing base64 file to disk");
 
-    let mut base64_file = fs::File::open(output_folder.join("input_b64.txt"))
+    let base64_file = fs::File::open(output_folder.join("input_b64.txt"))
         .expect("Error reopening the base64 file to chunk");
+    let base64_reader = BufReader::new(base64_file);
 
-    let chunk_size: usize = 1024; // 1 KB
+    let chunk_size: u64 = 1024; // 1 KB
 
-    let chunk_totals =
-        payload_size::number_chunks_overhead(base64_filesize_bytes, chunk_size as u16);
+    let chunk_iter = chunk_iterator::ChunkIterator::new(
+        base64_reader,
+        base64_filesize_bytes,
+        chunk_size - payload_size::HEADER_SIZE_BYTES,
+    );
+    let chunk_total = chunk_iter.chunk_total;
     println!(
         "File {:?}. base64 size: {} bytes = {} chunks of 1KB",
-        input_file, base64_filesize_bytes, chunk_totals
+        input_filename.to_str(),
+        base64_filesize_bytes,
+        chunk_total
     );
-    let mut chunk_count = 1;
-    let header_size = format!("{:03}OF{:03}", 1, 10).len();
-    let expected_chunk_bytes_read = chunk_size - header_size;
-    loop {
-        let mut chunk_header: Vec<u8> =
-            format!("{:03}OF{:03}", chunk_count, chunk_totals).into_bytes();
 
-        let mut chunk = Vec::<u8>::with_capacity(chunk_size);
-        chunk.append(&mut chunk_header); // FIXME write prefix to buffer
-
-        let bytes_read_chunk = std::io::Read::by_ref(&mut base64_file)
-            .take(expected_chunk_bytes_read as u64)
-            .read_to_end(&mut chunk)
-            .expect("Error reading chunk off file");
-        if bytes_read_chunk == 0 {
-            break;
-        }
-
+    let mut chunk_id = 1;
+    for chunk in chunk_iter {
         // Encode some data into bits.
-        let code = QrCode::new(&chunk).expect("Error encoding chunk into QR code");
+        let code =
+            QrCode::new(chunk.unwrap().as_bytes()).expect("Error encoding chunk into QR code");
 
         // Render the bits into an image.
         let image = code.render::<Luma<u8>>().build();
 
         // Save the image.
         image
-            .save(output_folder.join(format!("{:03}.png", chunk_count)))
+            .save(output_folder.join(format!("{:03}.png", chunk_id)))
             .expect("Error saving chunk's QR code file");
 
-        println!("Saved QR {:03}/{}", chunk_count, chunk_totals);
-        // let mut out_file = fs::File::create())
-
-        // out_file
-        //     .write(chunk_header.as_bytes())
-        //     .expect("Error writing out file chunk header");
-        // out_file
-        //     .write_all(&chunk)
-        //     .expect("Error writing out file chunk");
-        chunk_count += 1;
+        println!("Saving QR {:03}/{}", chunk_id, &chunk_total);
+        chunk_id += 1; // FIXME: Chunk ID & total are inside chunk_iter, moved
     }
     println!(
         "Split file in {} QR chunks, in folder {:?}",
-        chunk_count - 1,
-        output_folder
+        chunk_total, output_folder
     );
 }
 
