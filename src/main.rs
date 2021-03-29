@@ -45,6 +45,7 @@ extern crate qrcode;
 mod chunk_iterator;
 mod parser;
 mod payload_size;
+mod pdf;
 
 /// Encodes `input_file` with qrxfil into QR files inside `output_folder`
 ///
@@ -239,6 +240,13 @@ fn run(matches: &ArgMatches<'static>) -> Result<(), parser::RestoreError> {
 
         encode(Path::new(input_filename), Path::new(output_folder));
         return Ok(());
+    }
+    if let Some(matches_printpdf) = matches.subcommand_matches("pdfprint") {
+        let input_filename = matches_printpdf.value_of("input").unwrap();
+        let output_folder = matches_printpdf.value_of("output_folder").unwrap();
+
+        encode(Path::new(input_filename), Path::new(output_folder));
+        pdf::genpandoc(Path::new(output_folder));
     }
     if let Some(matches_restore) = matches.subcommand_matches("restore") {
         let encoded_input_filename = matches_restore.value_of("encoded_input").unwrap();
