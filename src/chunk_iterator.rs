@@ -8,7 +8,7 @@ use crate::parser::EncodedChunk;
 /// An iterator for reading `chunk_size` bytes off the given `reader`
 pub struct BufferedIterator<T>
 where
-    T: Read,
+    T: BufRead,
 {
     reader: T,
     chunk_size: u64,
@@ -16,7 +16,7 @@ where
 
 impl<T> BufferedIterator<T>
 where
-    T: Read,
+    T: BufRead,
 {
     /// Get a new iterator ready to read `chunk_size` bytes from `reader`
     pub fn new(reader: T, chunk_size: u64) -> Self {
