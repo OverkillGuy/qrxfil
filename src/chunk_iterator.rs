@@ -1,5 +1,7 @@
-use std::io;
-use std::io::{BufRead, Read};
+use std::{
+    io,
+    io::{BufRead, Read},
+};
 
 use crate::parser::EncodedChunk;
 
@@ -61,7 +63,8 @@ where
     T: BufRead,
 {
     #[allow(dead_code)] // Temporary while no consumer of this API
-    /// Get a new iterator ready to read `chunk_size` bytes from `reader`, representing
+    /// Get a new iterator ready to read `chunk_size` bytes from `reader`,
+    /// representing
     pub fn new(reader: T, total_size: u64, chunk_size: u64) -> Self {
         // When given a stream to read, calculate number of chunks as
         // "how many read operations", nevermind the overhead. This

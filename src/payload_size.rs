@@ -23,10 +23,11 @@
 pub const HEADER_SIZE_BYTES: u64 = 8;
 
 #[allow(dead_code)] // TODO No need for this func anymore?
-/// How many chunks of `chunk_size_bytes` to send for a given payload of `payload_size_bytes`
-/// Taking into account the overhead of HEADER_SIZE_BYTES per chunk
+/// How many chunks of `chunk_size_bytes` to send for a given payload of
+/// `payload_size_bytes` Taking into account the overhead of `HEADER_SIZE_BYTES`
+/// per chunk
 pub fn number_chunks_overhead(payload_size_bytes: u64, chunk_size_bytes: u16) -> u64 {
-    let chunk_payload_size_bytes: u64 = (chunk_size_bytes as u64) - HEADER_SIZE_BYTES;
+    let chunk_payload_size_bytes: u64 = (u64::from(chunk_size_bytes)) - HEADER_SIZE_BYTES;
     ((payload_size_bytes as f64) / (chunk_payload_size_bytes as f64)).ceil() as u64
 }
 
@@ -43,9 +44,11 @@ mod payload_size_tests {
     }
     #[test]
     fn test_exact_align_overhead() {
-        // Scenario: 4 KB payload split over 1024 bytes content forces a fifth chunk of overhead
+        // Scenario: 4 KB payload split over 1024 bytes content forces a fifth chunk of
+        // overhead
         assert_eq!(number_chunks_overhead(4 * 1024, 1024), 5);
-        // Scenario: 120 bytes payload split over 30 bytes content forces a fifth chunk too
+        // Scenario: 120 bytes payload split over 30 bytes content forces a fifth chunk
+        // too
         assert_eq!(number_chunks_overhead(120, 30), 6);
     }
 

@@ -20,8 +20,10 @@
 //! Parse encoded string into a struct for reassembly
 
 use itertools::Itertools;
-use std::collections::{BTreeMap, HashSet};
-use std::fmt;
+use std::{
+    collections::{BTreeMap, HashSet},
+    fmt,
+};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 /// A chunk that's already encoded, with base64 payload
@@ -90,8 +92,7 @@ impl fmt::Display for RestoreError {
                 missing_chunk_ids,
             } => write!(
                 f,
-                "Missing some chunks! Expected to see {} chunks, \
-		 but missing chunks: {:?}",
+                "Missing some chunks! Expected to see {} chunks, but missing chunks: {:?}",
                 expected_total, missing_chunk_ids
             ),
             RestoreError::MismatchingDuplicateChunk { mismatching_chunks } => write!(
@@ -104,8 +105,8 @@ impl fmt::Display for RestoreError {
                 clashing_chunk,
             } => write!(
                 f,
-                "A chunk reported a total that didn't match the expected total. \
-                 Reference chunk said {} chunks total, clashing chunk said {}",
+                "A chunk reported a total that didn't match the expected total. Reference chunk \
+                 said {} chunks total, clashing chunk said {}",
                 reference_chunk.total, clashing_chunk.total
             ),
             RestoreError::TooManyChunks {
@@ -113,8 +114,7 @@ impl fmt::Display for RestoreError {
                 unexpected_chunk_ids,
             } => write!(
                 f,
-                "Too many chunks were found! Expected {} chunks, \
-		 found extra chunks {:?}",
+                "Too many chunks were found! Expected {} chunks, found extra chunks {:?}",
                 expected_total, unexpected_chunk_ids
             ),
         }
@@ -143,7 +143,7 @@ impl fmt::Display for ChunkParseError {
 
 /// Checks that chunks with the same ID are identical in payload
 /// Returns the chunk contents if all are identical, or
-/// RestoreError::MismatchingDuplicateChunk otherwise.
+/// `RestoreError::MismatchingDuplicateChunk` otherwise.
 /// Assumes the chunks are already sorted by ID (groupable)
 fn collapse_chunks(chunks: &[EncodedChunk]) -> Result<Vec<EncodedChunk>, RestoreError> {
     let _expected_total: u16 = chunks[0].total;
@@ -154,26 +154,24 @@ fn collapse_chunks(chunks: &[EncodedChunk]) -> Result<Vec<EncodedChunk>, Restore
 
     let mut mismatching = Vec::<(EncodedChunk, String)>::new();
     // Group by chunk id
-    for (_chunk_id, duplicate_chunks) in &chunks.into_iter().group_by(|chunk| chunk.id) {
-        let mut duplicate_chunks_iter = duplicate_chunks.into_iter();
-        let reference_chunk = match duplicate_chunks_iter.next() {
+    for (_chunk_id, mut duplicate_chunks) in &chunks.iter().group_by(|chunk| chunk.id) {
+        let reference_chunk = match duplicate_chunks.next() {
             Some(v) => v,
             None => panic!("Couldn't get 1 item per groupby"),
         };
-        for duplicate_chunk in duplicate_chunks_iter {
+        for duplicate_chunk in duplicate_chunks {
             if duplicate_chunk.payload != reference_chunk.payload {
                 mismatching.push((reference_chunk.clone(), duplicate_chunk.payload.clone()));
             }
         }
         chunks_out.push(reference_chunk.clone());
     }
-    match mismatching.is_empty() {
-        true => return Ok(chunks_out.to_vec()),
-        false => {
-            return Err(RestoreError::MismatchingDuplicateChunk {
-                mismatching_chunks: mismatching,
-            })
-        }
+    if mismatching.is_empty() {
+        Ok(chunks_out)
+    } else {
+        Err(RestoreError::MismatchingDuplicateChunk {
+            mismatching_chunks: mismatching,
+        })
     }
 }
 
