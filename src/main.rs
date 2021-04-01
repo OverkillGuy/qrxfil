@@ -195,7 +195,7 @@ fn main() {
 fn get_args() -> ArgMatches<'static> {
     App::new("qrxfil")
         .version("0.1.0")
-        .about("Transfer/backup files as a sequence of QR codes")
+        .about("Transfer/backup files as a sequence of QR codes (requires pandoc)")
         .author("Jb DOYON")
         .subcommand(
             SubCommand::with_name("exfil")
