@@ -38,6 +38,8 @@ jobs:
           - 1.40.0 # MSRV
     steps:
       - uses: actions/checkout@v2
+      - name: Install compiler for Rust
+        run: apt-get update && apt-get install -y build-essential && apt-get clean && rm -rf /var/lib/apt/lists/*
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
