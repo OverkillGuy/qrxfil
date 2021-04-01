@@ -37,10 +37,14 @@ impl fmt::Display for EncodedChunk {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
 /// Things that can go wrong when restoring a chunked file
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
 pub enum RestoreError {
     /// Not enough chunks for the expected total
+    #[error(
+        "Missing some chunks! Expected to see {expected_total} chunks, but missing chunks: \
+         {missing_chunk_ids:?}"
+    )]
     MissingChunk {
         /// How many we thought we'd find
         expected_total: u16,
@@ -48,6 +52,10 @@ pub enum RestoreError {
         missing_chunk_ids: Vec<u16>,
     },
     /// Unexpectedly too many chunks ("52 of 51")
+    #[error(
+        "Too many chunks were found! Expected {expected_total} chunks, found extra chunks \
+         {unexpected_chunk_ids:?}"
+    )]
     TooManyChunks {
         /// How many we thought we'd find
         expected_total: u16,
@@ -56,6 +64,10 @@ pub enum RestoreError {
     },
     /// A chunk's total doesn't match the expected total
     /// "Expected" total is set from first decoded chunks as reference
+    #[error(
+        "A chunk reported a total that didn't match the expected total. Reference chunk \
+        said {} chunks total, clashing chunk said {}", reference_chunk.total, clashing_chunk.total
+    )]
     TotalMismatch {
         /// The original chunk we used as reference for total
         reference_chunk: EncodedChunk,
@@ -63,12 +75,16 @@ pub enum RestoreError {
         clashing_chunk: EncodedChunk,
     },
     /// Chunks were found twice but with mismatching payload
+    #[error(
+        "Chunks were found multiple times with clashing payload! Clashing: {mismatching_chunks:?}"
+    )]
     MismatchingDuplicateChunk {
         /// Chunks we found multiple times with mismatch, as an array
         /// of (reference chunk, payload that mismatched)
         mismatching_chunks: Vec<(EncodedChunk, String)>,
     },
     /// A chunk could not be parsed
+    #[error("Error decoding chunk! Error was: {error} for chunk '{raw_chunk}'")]
     ChunkDecodeError {
         /// What went wrong
         error: ChunkParseError,
@@ -77,73 +93,25 @@ pub enum RestoreError {
     },
 }
 
-impl fmt::Display for RestoreError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            RestoreError::ChunkDecodeError { raw_chunk, error } => write!(
-                f,
-                "Error decoding chunk! Error was: {:?} for chunk '{}'",
-                error, raw_chunk
-            ),
-            RestoreError::MissingChunk {
-                expected_total,
-                missing_chunk_ids,
-            } => write!(
-                f,
-                "Missing some chunks! Expected to see {} chunks, \
-		 but missing chunks: {:?}",
-                expected_total, missing_chunk_ids
-            ),
-            RestoreError::MismatchingDuplicateChunk { mismatching_chunks } => write!(
-                f,
-                "Chunks were found multiple times with clashing payload! Clashing: {:?}",
-                mismatching_chunks
-            ),
-            RestoreError::TotalMismatch {
-                reference_chunk,
-                clashing_chunk,
-            } => write!(
-                f,
-                "A chunk reported a total that didn't match the expected total. \
-                 Reference chunk said {} chunks total, clashing chunk said {}",
-                reference_chunk.total, clashing_chunk.total
-            ),
-            RestoreError::TooManyChunks {
-                expected_total,
-                unexpected_chunk_ids,
-            } => write!(
-                f,
-                "Too many chunks were found! Expected {} chunks, \
-		 found extra chunks {:?}",
-                expected_total, unexpected_chunk_ids
-            ),
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, thiserror::Error)]
 /// Result type for errors of Chunk parsing
 pub enum ChunkParseError {
+    #[error("Chunk identifier not found")]
     IdMissing,
-    TotalMissing,
-    PayloadMissing,
-    BadSeparator,
-}
 
-impl fmt::Display for ChunkParseError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            ChunkParseError::IdMissing => write!(f, "Chunk identifier not found"),
-            ChunkParseError::TotalMissing => write!(f, "Total number of chunks not found"),
-            ChunkParseError::PayloadMissing => write!(f, "Chunk has no payload"),
-            ChunkParseError::BadSeparator => write!(f, "Chunk id/total separator incorrect"),
-        }
-    }
+    #[error("Total number of chunks not found")]
+    TotalMissing,
+
+    #[error("Chunk has no payload")]
+    PayloadMissing,
+
+    #[error("Chunk id/total separator incorrect")]
+    BadSeparator,
 }
 
 /// Checks that chunks with the same ID are identical in payload
 /// Returns the chunk contents if all are identical, or
-/// RestoreError::MismatchingDuplicateChunk otherwise.
+/// `RestoreError::MismatchingDuplicateChunk` otherwise.
 /// Assumes the chunks are already sorted by ID (groupable)
 fn collapse_chunks(chunks: &[EncodedChunk]) -> Result<Vec<EncodedChunk>, RestoreError> {
     let _expected_total: u16 = chunks[0].total;
@@ -154,26 +122,24 @@ fn collapse_chunks(chunks: &[EncodedChunk]) -> Result<Vec<EncodedChunk>, Restore
 
     let mut mismatching = Vec::<(EncodedChunk, String)>::new();
     // Group by chunk id
-    for (_chunk_id, duplicate_chunks) in &chunks.into_iter().group_by(|chunk| chunk.id) {
-        let mut duplicate_chunks_iter = duplicate_chunks.into_iter();
-        let reference_chunk = match duplicate_chunks_iter.next() {
+    for (_chunk_id, mut duplicate_chunks) in &chunks.iter().group_by(|chunk| chunk.id) {
+        let reference_chunk = match duplicate_chunks.next() {
             Some(v) => v,
             None => panic!("Couldn't get 1 item per groupby"),
         };
-        for duplicate_chunk in duplicate_chunks_iter {
+        for duplicate_chunk in duplicate_chunks {
             if duplicate_chunk.payload != reference_chunk.payload {
                 mismatching.push((reference_chunk.clone(), duplicate_chunk.payload.clone()));
             }
         }
         chunks_out.push(reference_chunk.clone());
     }
-    match mismatching.is_empty() {
-        true => return Ok(chunks_out.to_vec()),
-        false => {
-            return Err(RestoreError::MismatchingDuplicateChunk {
-                mismatching_chunks: mismatching,
-            })
-        }
+    if mismatching.is_empty() {
+        Ok(chunks_out)
+    } else {
+        Err(RestoreError::MismatchingDuplicateChunk {
+            mismatching_chunks: mismatching,
+        })
     }
 }
 

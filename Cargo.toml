@@ -15,7 +15,7 @@ image = "^0.23"
 base64 = "0.13.0"
 clap = "2.33.3"
 itertools = "^0.10"
-
+thiserror = "1.0.24"
 
 [dev-dependencies]
 rand = "0.8.3"
