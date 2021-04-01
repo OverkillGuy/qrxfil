@@ -116,14 +116,14 @@ mod iterator_tests {
         // When I call iterator.next() three times
         let res = match iter.next() {
             None => panic!("iterator returned no data first time"),
-            Some(Err(e)) => panic!(e),
+            Some(Err(e)) => panic!("Iteration failed on known buffer. Got {}", e),
             Some(Ok(buf)) => buf,
         };
         // Then the first two yield Some payload
         assert_eq!(res, payload[..5]);
         let res2 = match iter.next() {
             None => panic!("iterator returned no data"),
-            Some(Err(e)) => panic!(e),
+            Some(Err(e)) => panic!("Iteration failed on known buffer. Got {}", e),
             Some(Ok(buf)) => buf,
         };
         assert_eq!(res2, payload[5..]);
@@ -143,14 +143,14 @@ mod iterator_tests {
         // When I call iterator.next() thrice
         let res = match iter.next() {
             None => panic!("iterator returned no data first time"),
-            Some(Err(e)) => panic!(e),
+            Some(Err(e)) => panic!("Iteration failed on known buffer. Got {}", e),
             Some(Ok(buf)) => buf,
         };
         // Then the first yields Some payload
         assert_eq!(res, payload[..6]);
         let res2 = match iter.next() {
             None => panic!("iterator returned no data"),
-            Some(Err(e)) => panic!(e),
+            Some(Err(e)) => panic!("Iteration failed on known buffer. Got {}", e),
             Some(Ok(buf)) => buf,
         };
         // And the second returns leftover payload
@@ -178,7 +178,7 @@ mod chunk_iterator_tests {
         // When I call iterator.next() three times
         let res = match chunk_iter.next() {
             None => panic!("iterator returned no data first time"),
-            Some(Err(e)) => panic!(e),
+            Some(Err(e)) => panic!("Iteration failed on known buffer. Got {}", e),
             Some(Ok(i)) => i,
         };
         // Then the first two yield Some payload
@@ -192,7 +192,7 @@ mod chunk_iterator_tests {
         );
         let res2 = match chunk_iter.next() {
             None => panic!("iterator returned no data"),
-            Some(Err(e)) => panic!(e),
+            Some(Err(e)) => panic!("Iteration failed on known buffer. Got {}", e),
             Some(Ok(buf)) => buf,
         };
         assert_eq!(
@@ -220,7 +220,7 @@ mod chunk_iterator_tests {
         // When I call iterator.next() three times
         let res = match chunk_iter.next() {
             None => panic!("iterator returned no data first time"),
-            Some(Err(e)) => panic!(e),
+            Some(Err(e)) => panic!("Iteration failed on known buffer. Got {}", e),
             Some(Ok(buf)) => buf,
         };
         // Then the first yields Some payload
@@ -234,7 +234,7 @@ mod chunk_iterator_tests {
         );
         let res2 = match chunk_iter.next() {
             None => panic!("iterator returned no data"),
-            Some(Err(e)) => panic!(e),
+            Some(Err(e)) => panic!("Iteration failed on known buffer. Got {}", e),
             Some(Ok(buf)) => buf,
         };
         // And the second returns the leftover payload
