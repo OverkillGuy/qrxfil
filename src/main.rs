@@ -45,6 +45,7 @@ extern crate qrcode;
 mod chunk_iterator;
 mod parser;
 mod payload_size;
+mod pdf;
 
 /// Encodes `input_file` with qrxfil into QR files inside `output_folder`
 ///
@@ -193,43 +194,58 @@ fn main() {
 
 fn get_args() -> ArgMatches<'static> {
     App::new("qrxfil")
-    .version("0.1")
-    .about("Transfer/backup files as a sequence of QR codes")
-    .author("Jb DOYON") // And authors
-    .subcommand(
-        SubCommand::with_name("exfil")
-            .about("Generates QR code sequence from file")
-            .arg(
-                Arg::with_name("input") // And their own arguments
-                    .help("The input file to split into QR codes")
-                    .index(1)
-                    .required(true),
-            )
-            .arg(
-                Arg::with_name("output_folder")
-                    .help("The output folder to generate codes into")
-                    .index(2)
-                    .required(true),
-            ),
-    )
-    .subcommand(
-        SubCommand::with_name("restore")
-            .about("Decodes encoded strings back into file"
+        .version("0.1.0")
+        .about("Transfer/backup files as a sequence of QR codes (requires pandoc)")
+        .author("Jb DOYON")
+        .subcommand(
+            SubCommand::with_name("exfil")
+                .about("Generates QR code image sequence from file")
+                .arg(
+                    Arg::with_name("input")
+                        .help("The input file to split into QR codes")
+                        .index(1)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("output_folder")
+                        .help("The output folder to generate codes into")
+                        .index(2)
+                        .required(true),
+                ),
         )
-            .arg(
-                Arg::with_name("encoded_input") // And their own arguments
-                    .help("The input file with newline-delimited QR strings")
-                    .index(1)
-                    .required(true),
-            )
-            .arg(
-                Arg::with_name("output_file")
-                    .help("The output file to restore into")
-                    .index(2)
-                    .required(true),
-            ),
-
-).get_matches()
+        .subcommand(
+            SubCommand::with_name("restore")
+                .about("Decodes encoded strings back into file")
+                .arg(
+                    Arg::with_name("encoded_input")
+                        .help("The input file with newline-delimited QR strings")
+                        .index(1)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("output_file")
+                        .help("The output file to restore into")
+                        .index(2)
+                        .required(true),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("pdfprint")
+                .about("Generates a PDF of QR codes from file")
+                .arg(
+                    Arg::with_name("input")
+                        .help("The input file to split into QR codes")
+                        .index(1)
+                        .required(true),
+                )
+                .arg(
+                    Arg::with_name("output_folder")
+                        .help("The output folder to generate PDF into")
+                        .index(2)
+                        .required(true),
+                ),
+        )
+        .get_matches()
 }
 
 fn run(matches: &ArgMatches<'static>) -> Result<(), parser::RestoreError> {
@@ -239,6 +255,13 @@ fn run(matches: &ArgMatches<'static>) -> Result<(), parser::RestoreError> {
 
         encode(Path::new(input_filename), Path::new(output_folder));
         return Ok(());
+    }
+    if let Some(matches_printpdf) = matches.subcommand_matches("pdfprint") {
+        let input_filename = matches_printpdf.value_of("input").unwrap();
+        let output_folder = matches_printpdf.value_of("output_folder").unwrap();
+
+        encode(Path::new(input_filename), Path::new(output_folder));
+        pdf::genpandoc(Path::new(output_folder));
     }
     if let Some(matches_restore) = matches.subcommand_matches("restore") {
         let encoded_input_filename = matches_restore.value_of("encoded_input").unwrap();

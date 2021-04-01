@@ -8,7 +8,8 @@ binary application not a library with a contract.
 * [Unreleased]
 
 ** Added
-- Refactored encoding to use iterators generating chunks [[https://github.com/OverkillGuy/qrxfil/pull/21][#21]]
+- Refactored encoding to use iterators generating chunks [[https://github.com/OverkillGuy/qrxfil/issues/21][#21]]
+- =qrxfil pdfprint= command to split file into PDF pages for paper backups [[https://github.com/OverkillGuy/qrxfil/issues/11][#11]]
 
 * [0.1.0] - 2021-03-27
 
