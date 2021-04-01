@@ -240,8 +240,6 @@ fn missing_chunk_error() {
     temp.close().expect("Error deleting temporary folder");
 }
 
-// TODO trigger parser::RestoreError's other enum cases (TooManyChunks, ChunkDecodeError, TotalMismatch) as unittest
-
 #[test]
 // Scenario: Restoring with a duplicate chunk succeeds
 fn duplicate_chunk_skips() {
