@@ -7,6 +7,10 @@ binary application not a library with a contract.
 
 * [Unreleased]
 
+* [0.2.0] - 2021-04-02
+
+Important features like PDF and CSV
+
 ** Added
 - =qrxfil pdfprint= command to split file into PDF pages for paper backups [[https://github.com/OverkillGuy/qrxfil/issues/11][#11]]
 - =qrxfil restore= now supports =--csv= for semicolon-delimited exports
@@ -15,7 +19,7 @@ binary application not a library with a contract.
 
 * [0.1.0] - 2021-03-27
 
-Initial release
+Initial release with just the critical features
 
 ** Added
 - =qrxfil= as debian package via =cargo deb=
