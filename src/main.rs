@@ -156,7 +156,13 @@ fn decode(input_path: &Path, restored_path: &Path) -> Result<(), parser::Restore
             }
         }
     }
+    reassemble(&mut chunks, restored_path)
+}
 
+fn reassemble(
+    chunks: &mut Vec<parser::EncodedChunk>,
+    restored_path: &Path,
+) -> Result<(), parser::RestoreError> {
     // re-sort the chunks for out-of-order scanning
     chunks.sort_by_key(|chunk| chunk.id);
 
