@@ -161,10 +161,7 @@ pub fn check_chunk_range(chunks: &[EncodedChunk]) -> Result<Vec<EncodedChunk>, R
     let expected_chunk_ids: HashSet<u16> = (1..=expected_total).collect();
     let actual_chunk_ids_set: HashSet<u16> = actual_chunk_ids.keys().cloned().collect();
     // Do we have enough chunks?
-    println!(
-        "Should have {:?}, got {:?}",
-        expected_chunk_ids, actual_chunk_ids_set
-    );
+
     // We have enough chunks, check duplicates for corrupted payload
     if actual_chunk_ids_set == expected_chunk_ids {
         return collapse_chunks(&chunks);

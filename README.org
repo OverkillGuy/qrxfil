@@ -2,26 +2,25 @@
 
 Exfiltrate files via QR codes.
 
-Splits files across multiple QR codes for "sending" across air-gapped
-computer systems. Generates numbered PNG files to scan.
+Splitting files across multiple QR codes for "sending" across air-gapped
+computer systems. Generates numbered PNG files to scan, can save PDF.
 
-The codes contain metadata about chunk number (e.g. "007 of 178") to
-enable out-of-order scanning.
+The codes contain metadata about chunk number (e.g. "007 of 103") to
+enable out-of-order scanning and reconstruction.
 
 
+#+ATTR_ORG: :width 500
 #+caption: qrxfil sample workflow in airgapped environment
-[[file:qrxfil_description.png]]
+[[file:images/qrxfil_description.png]]
 
 
 * Dependencies
 
-=qrxfil= is built in Rust, relying on:
+=qrxfil= is built in Rust, relying mostly on:
 - [[https://crates.io/crates/base64][base64]], to encode binary in ASCII characters
 - [[https://crates.io/crates/qrcode][qrcode]], to generate the codes themselves
-
-This is a toy project meant to learn Rust, for which a Bash proof of
-concept was built as reference, see the =scripts/= folder.
-
+- [[https://serde.rs/][serde]] for CSV parsing
+- [[https://pandoc.org/][pandoc]] and [[https://www.latex-project.org/][LaTeX]] (optional) for PDF generation
 
 * Installation
 
@@ -41,6 +40,20 @@ To generate QR chunks for exfiltration:
 qrxfil exfil file_to_exfil.txt qr_output_folder/
 #+end_src
 
+Now =output_folder/= will contain numbered images to scan.
+
+For paper-based backups of important files, we can output a PDF
+(requires =pandoc= package and a working \LaTeX compiler):
+
+#+begin_src shell
+qrxfil pdfprint file_to_exfil.txt qr_output_folder/
+#+end_src
+
+It looks like this:
+#+ATTR_ORG: :width 500
+#+caption: qrxfil sample workflow in airgapped environment
+[[file:images/pdf_export_example_pandoc.png]]
+
 Once these QR images are scanned (on your own), we can reconstruct the
 file from a newline-delimited chunk file:
 
@@ -48,6 +61,12 @@ file from a newline-delimited chunk file:
 qrxfil restore newline_delimited_chunks.txt restored_file.txt
 #+end_src
 
+Or using [[https://github.com/markusfisch/BinaryEye][BinaryEye app on Android]], use the scan export in "CSV with
+semicolon delimiters" and restore via
+
+#+begin_src shell
+qrxfil restore --csv binaryeye_export.csv restored_file.txt
+#+end_src
 
 * Development
 
@@ -63,50 +82,58 @@ Run tests:
 cargo test
 #+end_src
 
-This project uses [[https://pre-commit.com/][pre-commit]] to enforce code guidelines.
+This project uses [[https://pre-commit.com/][pre-commit]] to enforce code guidelines, and has a
+sample =Makefile= for ease of use; Run all those checks in one go with:
+
+#+begin_src shell
+make
+#+end_src
+
+Github Actions runs similar checks for Continuous Integration purposes
+on master and in pull requests.
 
 * FAQ
 
 ** Why build this?
 
-Most simply: To get a toy project to learn Rust with!
+Most simply: To learn Rust with a fun, silly project!
 
 But also because I like local-first solutions: Why upload stuff to The
-Cloud™ when you're just trying to send <1MB files across the room?
+Cloud™ when you're just trying to move <1MB files across the room?
 
 My usecase started with synchronizing my [[https://wiki.archlinux.org/index.php/Dotfiles][dotfiles]] across computers,
 but without using Github. This led me to learn about how [[https://git-scm.com/book/en/v2/Git-Tools-Bundling][git bundling]]
-works, sending file-dumps of a repo, branch or commit, moving it like
+works, sending file-based dumps of a repo, branch or commit, moving it like
 files on a USB stick. I looked to using bluetooth for that, which
 worked OK (had to pretend these were "PDFs" for "security reasons")
 and thought "what are other creative ways to send data?".
 
-There are a lot of options for "covert channels" and side-channels to
-exploit, but I felt QR codes have the unique advantage of being
-clearly recognizeable by users ("that thing like at the bus stop"),
-but not clearly identified with "carrying data" beyond URLs.
+There are a lot of options for "covert channels" and other
+side-channels to exploit for this, but I felt QR codes have the unique
+advantage of being clearly recognizeable by users ("that thing you've
+seen at the bus stop"), but not always clearly identified as "carrying
+data" beyond simple links.
 
-I built a prototype in bash in an afternoon, using =split= and =qrencode=,
-adding chunk identifying prefix. Another motivation is critical file
-paper backups, such as GPG key backups on paper for physical copies.
-See [[https://github.com/OverkillGuy/qrxfil/issues/11][feature request #11]] for details.
+I built a prototype in bash in an afternoon, using =split= and =qrencode=
+(see it in =scripts/=), adding chunk identifying prefix. Another
+motivation is critical file paper backups, such as GPG key backups on
+paper for physical copies. See the =pdfprint= subcommand above.
 
 ** If I can bring qrxfil inside an air-gapped fence, why not send back data via that channel instead of QR codes?
 
 I don't have a good answer, you caught me: this isn't really a
 security tool, just a fun prototype to send < 1MB of data across two
-computers in a fun way.
+computers in a creative way.
 
 If I really had to defend this, I'd say that my usecase is "work
 computers" where you're trusted enough to write code on (including
 getting a compiler and going on the internet) but with basic network
 auditing in place to detect foreign network connections, and using SSH
-to connect to your home computer from local wifi would be too obvious.
+to connect to your home computer from local wifi would be too risky.
 
 The "data exfiltration" aspect of this project is just a gimmick to
 get people to think about security implications of data exfiltration,
-and it's just a fun mis-application of technology.
-
+as it's a fun mis-application of technology.
 
 * License
 

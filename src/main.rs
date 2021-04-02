@@ -43,9 +43,14 @@ extern crate image;
 extern crate qrcode;
 
 mod chunk_iterator;
+mod csv_decode;
 mod parser;
-mod payload_size;
 mod pdf;
+
+/// Size of a header in bytes
+/// Three digits twice (id / total) plus delimiter string "OF" e.g.
+/// 013OF078
+const HEADER_SIZE_BYTES: u64 = 8;
 
 /// Encodes `input_file` with qrxfil into QR files inside `output_folder`
 ///
@@ -99,7 +104,7 @@ fn encode(input_filename: &Path, output_folder: &Path) {
     let chunk_iter = chunk_iterator::ChunkIterator::new(
         base64_reader,
         base64_filesize_bytes,
-        chunk_size - payload_size::HEADER_SIZE_BYTES,
+        chunk_size - HEADER_SIZE_BYTES,
     );
     let chunk_total = chunk_iter.chunk_total;
     println!(
@@ -156,7 +161,13 @@ fn decode(input_path: &Path, restored_path: &Path) -> Result<(), parser::Restore
             }
         }
     }
+    reassemble(&mut chunks, restored_path)
+}
 
+fn reassemble(
+    chunks: &mut Vec<parser::EncodedChunk>,
+    restored_path: &Path,
+) -> Result<(), parser::RestoreError> {
     // re-sort the chunks for out-of-order scanning
     chunks.sort_by_key(|chunk| chunk.id);
 
@@ -179,6 +190,31 @@ fn decode(input_path: &Path, restored_path: &Path) -> Result<(), parser::Restore
         .write_all(&decoded_contents)
         .expect("Error writing out restored file chunk");
     Ok(())
+}
+
+fn decode_csv(input_path: &Path, restored_path: &Path) -> Result<(), parser::RestoreError> {
+    let input_file = match fs::File::open(input_path) {
+        Ok(f) => f,
+        Err(err) => panic!("Error opening file for decoding: {}", err),
+    };
+
+    let mut rdr = csv::ReaderBuilder::new()
+        .delimiter(b';')
+        .has_headers(true)
+        .double_quote(true)
+        .flexible(true)
+        .from_reader(input_file);
+    let mut scans: Vec<parser::EncodedChunk> = rdr
+        .deserialize()
+        .map(|line| {
+            let record: csv_decode::Scan =
+                line.expect("Error deserializing CSV line into Scan record");
+            record
+        })
+        .filter(|s| s.format == "QR_CODE")
+        .map(|s| parser::parse(&s.content).expect("Bad chunk"))
+        .collect();
+    reassemble(&mut scans, restored_path)
 }
 
 fn main() {
@@ -216,6 +252,12 @@ fn get_args() -> ArgMatches<'static> {
         .subcommand(
             SubCommand::with_name("restore")
                 .about("Decodes encoded strings back into file")
+                .arg(
+                    Arg::with_name("csv")
+                        .short("c")
+                        .long("csv")
+                        .help("Parse the given file as CSV"),
+                )
                 .arg(
                     Arg::with_name("encoded_input")
                         .help("The input file with newline-delimited QR strings")
@@ -267,7 +309,11 @@ fn run(matches: &ArgMatches<'static>) -> Result<(), parser::RestoreError> {
         let encoded_input_filename = matches_restore.value_of("encoded_input").unwrap();
         let output_file = matches_restore.value_of("output_file").unwrap();
 
-        return decode(Path::new(encoded_input_filename), Path::new(output_file));
+        if matches_restore.is_present("csv") {
+            return decode_csv(Path::new(encoded_input_filename), Path::new(output_file));
+        } else {
+            return decode(Path::new(encoded_input_filename), Path::new(output_file));
+        }
     }
     Ok(())
 }

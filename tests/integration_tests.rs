@@ -69,3 +69,39 @@ fn file_to_qr_happy() {
     // clean up the temp folder
     temp.close().expect("Error deleting temporary folder");
 }
+
+// Scenario: qrxfil restore --csv
+#[test]
+fn csv_restored_happy() {
+    // Given a file already split in 5 parts
+    let temp = assert_fs::TempDir::new().unwrap();
+    temp.copy_from("tests/", &["5_part_readme.csv"]).unwrap();
+    let input_file = temp.child("5_part_readme.csv");
+    let restored_file = temp.child("README.org");
+    // When I restore it as CSV
+    let mut cmd = Command::cargo_bin("qrxfil").expect("Error find qrxfil command");
+    let args = [
+        "restore",
+        "--csv",
+        input_file.path().to_str().unwrap(),
+        restored_file.path().to_str().unwrap(),
+    ];
+    // Then restore succeeds
+    cmd.args(&args).assert().success();
+    // And md5sum matches original
+    let md5_out = Command::new("md5sum")
+        .current_dir(temp.path())
+        .args(&[restored_file.path().to_str().unwrap()])
+        .output()
+        .expect("Failed while running md5")
+        .stdout;
+
+    let md5_str: String = String::from_utf8(md5_out).unwrap();
+    assert_eq!(
+        md5_str.split("  ").collect::<Vec<&str>>()[0],
+        "ed3ce8996583747ee27a7d626d0c8f63"
+    );
+
+    // clean up the temp folder
+    temp.close().expect("Error deleting temporary folder");
+}
