@@ -44,8 +44,12 @@ extern crate qrcode;
 
 mod chunk_iterator;
 mod parser;
-mod payload_size;
 mod pdf;
+
+/// Size of a header in bytes
+/// Three digits twice (id / total) plus delimiter string "OF" e.g.
+/// 013OF078
+const HEADER_SIZE_BYTES: u64 = 8;
 
 /// Encodes `input_file` with qrxfil into QR files inside `output_folder`
 ///
@@ -99,7 +103,7 @@ fn encode(input_filename: &Path, output_folder: &Path) {
     let chunk_iter = chunk_iterator::ChunkIterator::new(
         base64_reader,
         base64_filesize_bytes,
-        chunk_size - payload_size::HEADER_SIZE_BYTES,
+        chunk_size - HEADER_SIZE_BYTES,
     );
     let chunk_total = chunk_iter.chunk_total;
     println!(
