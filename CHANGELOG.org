@@ -8,10 +8,10 @@ binary application not a library with a contract.
 * [Unreleased]
 
 ** Added
-- Refactored encoding to use iterators generating chunks [[https://github.com/OverkillGuy/qrxfil/issues/21][#21]]
 - =qrxfil pdfprint= command to split file into PDF pages for paper backups [[https://github.com/OverkillGuy/qrxfil/issues/11][#11]]
-- =qrxfil restore= now supports =--csv= for semicolon-delimited exports from
-  [[https://github.com/markusfisch/BinaryEye][BinaryEye]] [[https://github.com/OverkillGuy/qrxfil/issues/22][#22]]
+- =qrxfil restore= now supports =--csv= for semicolon-delimited exports
+  from [[https://github.com/markusfisch/BinaryEye][BinaryEye]] [[https://github.com/OverkillGuy/qrxfil/issues/22][#22]]
+- Refactored encoding to use iterators for generation of chunks [[https://github.com/OverkillGuy/qrxfil/issues/21][#21]]
 
 * [0.1.0] - 2021-03-27
 
