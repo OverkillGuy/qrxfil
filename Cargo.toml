@@ -17,6 +17,9 @@ clap = "2.33.3"
 itertools = "^0.10"
 thiserror = "1.0.24"
 pandoc = "0.8.4"
+csv = "1.1"
+serde = { version = "^1", features = ["derive"] }
+
 
 [dev-dependencies]
 rand = "0.8.3"
