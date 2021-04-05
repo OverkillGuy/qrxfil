@@ -29,3 +29,4 @@ predicates = "1.0.7"
 # Symmetric decode test
 rqrr = {version = "0.3.2", features = ["image"]}
 test-case = "1.1.0"
+pdf = "0.7.1"
