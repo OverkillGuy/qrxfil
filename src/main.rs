@@ -35,10 +35,6 @@ use qrcode::QrCode;
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
 use std::path::Path;
-extern crate base64;
-extern crate clap;
-extern crate image;
-extern crate qrcode;
 
 mod chunk_iterator;
 mod csv_decode;

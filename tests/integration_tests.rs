@@ -15,11 +15,6 @@
 // along with this program. If not, see
 // <https://www.gnu.org/licenses/>.
 
-extern crate assert_cmd;
-extern crate assert_fs;
-extern crate predicates;
-extern crate rand;
-
 use assert_cmd::Command;
 use assert_fs::prelude::*;
 use predicates::prelude::*;
