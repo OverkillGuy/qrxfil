@@ -15,9 +15,9 @@
 // along with this program. If not, see
 // <https://www.gnu.org/licenses/>.
 
-//! CSV decoder to read BinaryEye app's "CSV with semicolon delimiter"
+//! CSV decoder to read `BinaryEye` app's "CSV with semicolon delimiter"
 //! export format. Inspired by
-//! https://docs.rs/csv/1.1.6/csv/#example-with-serde
+//! <https://docs.rs/csv/1.1.6/csv/#example-with-serde>
 
 use serde::Deserialize;
 
