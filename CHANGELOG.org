@@ -7,6 +7,12 @@ binary application not a library with a contract.
 
 * [Unreleased]
 
+** Added
+- New PDF-generating test checking created PDF has > 1 page
+
+** Changed
+- MSRV bump in CI to =1.42.0= (from =1.40.0=) for new PDF test
+
 * [0.2.0] - 2021-04-02
 
 Important features like PDF and CSV

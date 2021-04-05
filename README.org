@@ -22,6 +22,13 @@ enable out-of-order scanning and reconstruction.
 - [[https://serde.rs/][serde]] for CSV parsing
 - [[https://pandoc.org/][pandoc]] and [[https://www.latex-project.org/][LaTeX]] (optional) for PDF generation
 
+
+
+** MSRV
+
+The Minimimum Supported Rust Version of this project is =1.42.0=,
+currently limited by the =pdf= library used during testing.
+
 * Installation
 
 Use =cargo deb= to generate a Debian package on linux that provides the
