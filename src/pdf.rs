@@ -28,7 +28,7 @@ fn read_folder_sorted(folder: &Path) -> Vec<PathBuf> {
         .expect("Could not list output directory")
         .map(Result::unwrap)
         .map(|file| file.path())
-        .filter(|path| path.ends_with("png"))
+        .filter(|path| path.extension() == Some("png".as_ref()))
         // read_dir does not guarantee ordering => explicit sort chunk files
         .sorted()
         .collect()
