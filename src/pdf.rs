@@ -17,21 +17,21 @@
 
 //! Create PDFs for printed paper backup
 
-use pandoc;
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
+use itertools::Itertools;
+
 fn read_folder_sorted(folder: &Path) -> Vec<PathBuf> {
-    let mut output_files: Vec<PathBuf> = std::fs::read_dir(folder)
+    std::fs::read_dir(folder)
         .expect("Could not list output directory")
         .map(Result::unwrap)
-        .filter(|file| file.file_name().to_str().unwrap().ends_with("png"))
-        .map(|e| e.path())
-        .collect();
-    // read_dir does not guarantee ordering => explicit sort chunk files
-    output_files.sort();
-    output_files
+        .map(|file| file.path())
+        .filter(|path| path.ends_with("png"))
+        // read_dir does not guarantee ordering => explicit sort chunk files
+        .sorted()
+        .collect()
 }
 
 pub fn genpandoc(output_folder: &Path) {
@@ -44,7 +44,8 @@ pub fn genpandoc(output_folder: &Path) {
     write!(
         markdown_file,
         "% qrxfil export ({} chunks)
-% Visit [Github.com/OverkillGuy/qrxfil](https://github.com/OverkillGuy/qrxfil) for details
+% Visit [Github.com/OverkillGuy/qrxfil](https://github.com/OverkillGuy/qrxfil) \
+         for details
 
 ",
         chunks_total,

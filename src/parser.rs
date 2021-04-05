@@ -123,10 +123,9 @@ fn collapse_chunks(chunks: &[EncodedChunk]) -> Result<Vec<EncodedChunk>, Restore
     let mut mismatching = Vec::<(EncodedChunk, String)>::new();
     // Group by chunk id
     for (_chunk_id, mut duplicate_chunks) in &chunks.iter().group_by(|chunk| chunk.id) {
-        let reference_chunk = match duplicate_chunks.next() {
-            Some(v) => v,
-            None => panic!("Couldn't get 1 item per groupby"),
-        };
+        let reference_chunk = duplicate_chunks
+            .next()
+            .expect("Couldn't get 1 item per groupby");
         for duplicate_chunk in duplicate_chunks {
             if duplicate_chunk.payload != reference_chunk.payload {
                 mismatching.push((reference_chunk.clone(), duplicate_chunk.payload.clone()));
@@ -346,7 +345,7 @@ mod range_tests {
             EncodedChunk {
                 id: 1,
                 total: 1,
-                payload: payload.clone(),
+                payload,
             },
         ];
         assert!(check_chunk_range(&chunks).is_ok());
@@ -370,7 +369,7 @@ mod range_tests {
         ];
         let range_check = check_chunk_range(&chunks);
         let error = Err(RestoreError::MismatchingDuplicateChunk {
-            mismatching_chunks: vec![(chunks[0].clone(), bad_payload.clone())],
+            mismatching_chunks: vec![(chunks[0].clone(), bad_payload)],
         });
         assert_eq!(range_check, error);
     }
