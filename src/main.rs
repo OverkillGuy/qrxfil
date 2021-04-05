@@ -32,15 +32,9 @@
 use clap::{App, Arg, ArgMatches, SubCommand};
 use image::Luma;
 use qrcode::QrCode;
-use std::{
-    fs,
-    io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
-    path::Path,
-};
-extern crate base64;
-extern crate clap;
-extern crate image;
-extern crate qrcode;
+use std::fs;
+use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
+use std::path::Path;
 
 mod chunk_iterator;
 mod csv_decode;
@@ -311,9 +305,8 @@ fn run(matches: &ArgMatches<'static>) -> Result<(), parser::RestoreError> {
 
         if matches_restore.is_present("csv") {
             return decode_csv(Path::new(encoded_input_filename), Path::new(output_file));
-        } else {
-            return decode(Path::new(encoded_input_filename), Path::new(output_file));
         }
+        return decode(Path::new(encoded_input_filename), Path::new(output_file));
     }
     Ok(())
 }
