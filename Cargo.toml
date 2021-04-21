@@ -10,7 +10,10 @@ edition = "2018"
 
 
 [dependencies]
+# PNG/SVG QR codes
 qrcode = "0.12"
+# UTF8 QR codes (forked from qrcode)
+qr_code = "1.1.0"
 image = "^0.23"
 base64 = "0.13.0"
 clap = "2.33.3"
@@ -19,6 +22,7 @@ thiserror = "1.0.24"
 pandoc = "0.8.4"
 csv = "1.1"
 serde = { version = "^1", features = ["derive"] }
+
 
 
 [dev-dependencies]
