@@ -1,5 +1,5 @@
-
-all: check lint build test deb
+# Default make target, does everything useful, and installs pre-commit hooks
+all: check lint install-precommit-hooks build test deb
 
 check:
 	cargo check
@@ -16,4 +16,7 @@ test:
 deb:
 	cargo deb
 
-.PHONY: all check lint build test deb
+install-precommit-hooks:
+	pre-commit install
+
+.PHONY: all check lint install-precommit-hooks build test deb
