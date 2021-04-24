@@ -8,6 +8,7 @@ binary application not a library with a contract.
 * [Unreleased]
 
 ** Added
+- =qrxfil exfil= now supports =--txt= for UTF8 textfile encoding [[https://github.com/OverkillGuy/qrxfil/issues/29][#29]]
 - New PDF-generating test checking created PDF has > 1 page
 
 ** Changed

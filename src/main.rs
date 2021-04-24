@@ -31,10 +31,11 @@
 
 use clap::{App, Arg, ArgMatches, SubCommand};
 use image::Luma;
+use qr_code;
 use qrcode::QrCode;
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 mod chunk_iterator;
 mod csv_decode;
@@ -46,20 +47,16 @@ mod pdf;
 /// 013OF078
 const HEADER_SIZE_BYTES: u64 = 8;
 
-/// Encodes `input_file` with qrxfil into QR files inside `output_folder`
-///
-/// `output_folder` (and parent directories) will be created if
-/// doesn't exist
-fn encode(input_filename: &Path, output_folder: &Path) {
+const CHUNK_SIZE: u64 = 1024; // down from 1 KB
+
+fn rewrite_as_base64(input_filename: &Path, output_folder: &Path) -> (PathBuf, u64) {
     let mut input_file = match fs::File::open(input_filename) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
     };
-
-    // Ensure output folder exists
-    fs::create_dir_all(output_folder).expect("Could not create/check output folder");
+    let base64_filename = output_folder.join("input_b64.txt");
     // Create a base64 version of our file
-    let mut base64_file = match fs::File::create(output_folder.join("input_b64.txt")) {
+    let mut base64_file = match fs::File::create(base64_filename.clone()) {
         Ok(f) => f,
         Err(err) => panic!("File error: {}", err),
     };
@@ -89,16 +86,70 @@ fn encode(input_filename: &Path, output_folder: &Path) {
         .sync_data()
         .expect("Error syncing base64 file to disk");
 
-    let base64_file = fs::File::open(output_folder.join("input_b64.txt"))
-        .expect("Error reopening the base64 file to chunk");
-    let base64_reader = BufReader::new(base64_file);
+    (base64_filename, base64_filesize_bytes)
+}
 
-    let chunk_size: u64 = 1024; // 1 KB
+/// Encodes `input_file` with qrxfil into QR text files inside `output_folder`
+///
+/// `output_folder` (and parent directories) will be created if
+/// doesn't exist
+fn encode_txt(input_filename: &Path, output_folder: &Path) {
+    // Ensure output folder exists
+    fs::create_dir_all(output_folder).expect("Could not create/check output folder");
 
+    let (base64_filename, base64_filesize_bytes) = rewrite_as_base64(input_filename, output_folder);
+    let base64_file =
+        fs::File::open(base64_filename).expect("Error reopening the base64 file to chunk");
     let chunk_iter = chunk_iterator::ChunkIterator::new(
-        base64_reader,
+        BufReader::new(base64_file),
         base64_filesize_bytes,
-        chunk_size - HEADER_SIZE_BYTES,
+        CHUNK_SIZE - HEADER_SIZE_BYTES,
+    );
+    let chunk_total = chunk_iter.chunk_total;
+    println!(
+        "File {:?}. base64 size: {} bytes = {} chunks of 1KB",
+        input_filename.to_str(),
+        base64_filesize_bytes,
+        chunk_total
+    );
+
+    for c in chunk_iter {
+        let chunk = c.expect("Problem reading reader");
+        // Encode some data into bits.
+        let code = qr_code::QrCode::new(format!("{}", chunk).as_bytes())
+            .expect("Error encoding chunk into QR code");
+
+        // Save the image.
+        fs::write(
+            output_folder.join(format!("{:03}.txt", chunk.id)),
+            code.to_string(false, 3),
+        )
+        .unwrap();
+        // .expect("Error saving chunk's QR code file");
+
+        println!("Saving QR {:03}/{}", chunk.id, chunk.total);
+    }
+    println!(
+        "Split file in {} QR chunks, in folder {:?}",
+        chunk_total, output_folder
+    );
+}
+
+/// Encodes `input_file` with qrxfil into QR image files inside `output_folder`
+///
+/// `output_folder` (and parent directories) will be created if
+/// doesn't exist
+fn encode_png(input_filename: &Path, output_folder: &Path) {
+    // Ensure output folder exists
+    fs::create_dir_all(output_folder).expect("Could not create/check output folder");
+
+    let (base64_filename, base64_filesize_bytes) = rewrite_as_base64(input_filename, output_folder);
+    let base64_file =
+        fs::File::open(base64_filename).expect("Error reopening the base64 file to chunk");
+    let chunk_iter = chunk_iterator::ChunkIterator::new(
+        BufReader::new(base64_file),
+        base64_filesize_bytes,
+        CHUNK_SIZE - HEADER_SIZE_BYTES,
     );
     let chunk_total = chunk_iter.chunk_total;
     println!(
@@ -117,11 +168,10 @@ fn encode(input_filename: &Path, output_folder: &Path) {
         // Render the bits into an image.
         let image = code.render::<Luma<u8>>().build();
 
-        // Save the image.
+        // Save the image
         image
             .save(output_folder.join(format!("{:03}.png", chunk.id)))
             .expect("Error saving chunk's QR code file");
-
         println!("Saving QR {:03}/{}", chunk.id, chunk.total);
     }
     println!(
@@ -241,6 +291,12 @@ fn get_args() -> ArgMatches<'static> {
                         .help("The output folder to generate codes into")
                         .index(2)
                         .required(true),
+                )
+                .arg(
+                    Arg::with_name("txt")
+                        .short("t")
+                        .long("txt")
+                        .help("Export QR codes as UTF8 text files not PNG"),
                 ),
         )
         .subcommand(
@@ -289,14 +345,18 @@ fn run(matches: &ArgMatches<'static>) -> Result<(), parser::RestoreError> {
         let input_filename = matches_exfil.value_of("input").unwrap();
         let output_folder = matches_exfil.value_of("output_folder").unwrap();
 
-        encode(Path::new(input_filename), Path::new(output_folder));
+        if matches_exfil.is_present("txt") {
+            encode_txt(Path::new(input_filename), Path::new(output_folder));
+        } else {
+            encode_png(Path::new(input_filename), Path::new(output_folder));
+        }
         return Ok(());
     }
     if let Some(matches_printpdf) = matches.subcommand_matches("pdfprint") {
         let input_filename = matches_printpdf.value_of("input").unwrap();
         let output_folder = matches_printpdf.value_of("output_folder").unwrap();
 
-        encode(Path::new(input_filename), Path::new(output_folder));
+        encode_png(Path::new(input_filename), Path::new(output_folder));
         pdf::genpandoc(Path::new(output_folder));
     }
     if let Some(matches_restore) = matches.subcommand_matches("restore") {
