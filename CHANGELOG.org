@@ -7,6 +7,11 @@ binary application not a library with a contract.
 
 * [Unreleased]
 
+
+* [0.3.0]- 2021-04-24
+
+Text-based QR codes for CLI usage, explict MSRV
+
 ** Added
 - =qrxfil exfil= now supports =--txt= for UTF8 textfile encoding [[https://github.com/OverkillGuy/qrxfil/issues/29][#29]]
 - New PDF-generating test checking created PDF has > 1 page
