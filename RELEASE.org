@@ -1,0 +1,39 @@
+#+TITLE: Making releases of qrxfil
+
+I am forgetful, and want this project to be perfect. I never remember
+the exact details of how to make a release beyond the obvious "bump
+versions and tag it".
+
+This page should answer questions like:
+
+- Do I put a "v" prefix in the git tag?
+- What annotation do I write?
+- Do I need to bump version anywhere but the =Cargo.toml= file?
+- What text goes in the Github Release?
+
+
+* Pre-release checklist: Before you go
+
+- [ ] Check =CHANGELOG.org= for all features since last release
+- [ ] Run =make= once more, with feeling
+- [ ] Check the CI build of master is green
+- [ ] Confirm new version number (major/minor/patch)
+
+All good? Let's release!
+
+* Release checklist
+
+- [ ] Bump version in =CHANGELOG.org=
+  - [ ] Update "Unreleased" with =* [x.y.z] - 2020-12-25= (version+timestamp)
+  - [ ] Write up a release summary oneliner (<50 chars)
+  - [ ] Reintroduce =* [Unreleased]= to top-level
+- [ ] Update package version in =Cargo.toml=
+- [ ] Run =make= to ensure =Cargo.lock= is updated too
+- [ ] Update package version in =README.org= sample =cargo deb= command
+- [ ] Commit the bump to master with message =Bump version to vx.y.z=
+- [ ] Make a git tag =git tag vx.y.z -a "Release x.y.z"=
+- [ ] Git push master
+- [ ] Git push the new tag
+- [ ] Create new Github Release from tag
+  - Use release summary oneliner for "Release title"
+  - Use the changelog of the release (minus summary) for "Release Description"
