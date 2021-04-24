@@ -31,7 +31,7 @@ All good? Let's release!
 - [ ] Run =make= to ensure =Cargo.lock= is updated too
 - [ ] Update package version in =README.org= sample =cargo deb= command
 - [ ] Commit the bump to master with message =Bump version to vx.y.z=
-- [ ] Make a git tag =git tag vx.y.z -a "Release x.y.z"=
+- [ ] Make a git tag =git tag -am "Release x.y.z" vx.y.z=
 - [ ] Git push master
 - [ ] Git push the new tag
 - [ ] Create new Github Release from tag

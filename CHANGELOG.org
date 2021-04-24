@@ -8,7 +8,12 @@ binary application not a library with a contract.
 * [Unreleased]
 
 
-* [0.3.0]- 2021-04-24
+* [0.3.1] - 2021-04-24
+
+Fixup: v0.3.0 had =Cargo.lock= mismatch with =Cargo.toml=
+
+
+* [0.3.0] - 2021-04-24
 
 Text-based QR codes for CLI usage, explict MSRV
 

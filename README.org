@@ -36,7 +36,7 @@ Use =cargo deb= to generate a Debian package on linux that provides the
 
 #+begin_src shell
 cargo deb
-sudo dpkg -i target/debian/qrxfil_0.3.0_amd64.deb
+sudo dpkg -i target/debian/qrxfil_0.3.1_amd64.deb
 #+end_src
 
 * Usage
