@@ -79,3 +79,37 @@ jobs:
         with:
           command: doc
           args: --no-deps
+
+  guix-build:
+    name: Guix packaging (experimental)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Guix cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/guix
+          # use a key that (almost) never matches
+          key: guix-cache-${{ github.sha }}
+          # Cannot use a cache for /gnu/store, since restore fails
+          restore-keys: |
+            guix-cache-
+      - name: Install Guix
+        uses: PromyLOPh/guix-install-action@v1
+      - uses: actions/checkout@v2
+      - name: Build my package
+        run: guix --load-path=guix/ build qrxfil
+      # Pack independent binary and upload as artifact
+      - name: Pack
+        run: guix pack --load-path=guix/ -RR --save-provenance --root=qrxfil.tar.bz2 --compression=bzip2 qrxfil
+      - name: Upload
+        uses: actions/upload-artifact@v2
+        with:
+          name: qrxfil
+          path: qrxfil.tar.bz2
+      - name: Pack (Docker format)
+        run: guix pack --load-path=. --format=docker --entry-point=bin/qrxfil --root=qrxfil-docker.tar.gz qrxfil
+      - name: Upload Docker
+        uses: actions/upload-artifact@v2
+        with:
+          name: qrxfil-docker
+          path: qrxfil-docker.tar.gz
