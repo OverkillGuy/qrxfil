@@ -99,6 +99,9 @@ make
 Github Actions runs similar checks for Continuous Integration purposes
 on master and in pull requests.
 
+An experimental [[https://guix.gnu.org/en/manual/en/html_node/Invoking-guix-pack.html#index-relocatable-binaries][guix]] package definition is available in the =guix/=
+folder, see the =README= in there.
+
 * FAQ
 
 ** Why build this?
