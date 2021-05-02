@@ -107,7 +107,7 @@ jobs:
           name: qrxfil
           path: qrxfil.tar.bz2
       - name: Pack (Docker format)
-        run: guix pack --load-path=. --format=docker --entry-point=bin/qrxfil --root=qrxfil-docker.tar.gz qrxfil
+        run: guix pack --load-path=guix/ --format=docker --entry-point=bin/qrxfil --root=qrxfil-docker.tar.gz qrxfil
       - name: Upload Docker
         uses: actions/upload-artifact@v2
         with:
