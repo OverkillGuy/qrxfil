@@ -97,7 +97,7 @@ jobs:
         uses: PromyLOPh/guix-install-action@v1
       - uses: actions/checkout@v2
       - name: Build my package
-        run: guix --load-path=guix/ build qrxfil
+        run: guix build --load-path=guix/ qrxfil
       # Pack independent binary and upload as artifact
       - name: Pack
         run: guix pack --load-path=guix/ -RR --save-provenance --root=qrxfil.tar.bz2 --compression=bzip2 qrxfil
