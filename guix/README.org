@@ -65,7 +65,21 @@ To build an OCI-compliant docker image tarball, use this:
 #+begin_src shell
 guix pack --load-path=. --format=docker --entry-point=bin/qrxfil --root=qrxfil-docker.tar.gz qrxfil
 docker load < qrxfil-docker.tar.gz
-docker run -ti qrxfil
+# Docker run invocation
+docker run \
+       -it \
+       -u $(id -u):$(id -u) \
+       -v $(pwd):/app/ \
+       -w /app/ \
+       qrxfil \
+       exfil .bashrc qrxfil_out
+# -it for interactive+tty
+# -u to avoid root-owned files
+# -v mounts the local folder in /app/
+# -w sets working directory to mounted /app/
+# Image name is "qrxfil"
+# Last line is actual parameters of qrxfil
+# aka exfiltrate the bashrc by creating qrxfil_out/
 #+end_src
 
 * Continuous integration
