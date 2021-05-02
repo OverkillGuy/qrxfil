@@ -83,5 +83,22 @@ docker run \
 #+end_src
 
 * Continuous integration
-Would be nice to package inside CI. See [[https://github.com/PromyLOPh/guix-install-action/blob/master/.github/workflows/test.yml][Guix install Github actions]],
-and [[https://github.com/PromyLOPh/guix-install-action/blob/master/.github/workflows/test.yml][Sample Github action for building a guix package]] for how to do that.
+
+CI using Github Action is running on this repository, using the [[https://github.com/PromyLOPh/guix-install-action/][Guix
+install Github actions]]. See the [[https://github.com/PromyLOPh/guix-install-action/blob/master/.github/workflows/test.yml][Sample CI.yml for building a guix
+package]].
+
+It's configured to build the package as tarball and a docker image,
+see above for how to use it.
+
+* Dev manifest file
+
+See =qrxfil-dev-manifest.scm= for a manifest file, the list of guix
+packages to install in a separate environment required for =make check
+build=. See [[https://guix.gnu.org/en/manual/en/html_node/Invoking-guix-environment.html][Guix manual: guix environment section]], and the [[https://guix.gnu.org/en/cookbook/en/html_node/Basic-setup-with-manifests.html][Guix
+cookbook: Working with profiles]].
+
+#+begin_src shell
+guix environment --manifest guix/qrxfil-dev-manifest.scm
+make check build
+#+end_src
