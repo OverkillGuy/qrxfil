@@ -29,7 +29,7 @@
 #![deny(missing_debug_implementations, clippy::all)]
 #![deny(missing_docs)]
 
-use clap::{App, Arg, ArgMatches, SubCommand};
+use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use image::Luma;
 use qr_code;
 use qrcode::QrCode;
@@ -274,7 +274,7 @@ fn main() {
 
 fn get_args() -> ArgMatches<'static> {
     App::new("qrxfil")
-        .version("0.1.0")
+        .version(crate_version!())
         .about("Transfer/backup files as a sequence of QR codes (requires pandoc)")
         .author("Jb DOYON")
         .subcommand(

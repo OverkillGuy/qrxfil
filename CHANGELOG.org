@@ -8,6 +8,9 @@ binary application not a library with a contract.
 * [Unreleased]
 
 
+** Fixed
+- Running =qrxfil= no longer shows hardcoded =0.1.0=, uses crate version instead.
+
 * [0.3.1] - 2021-04-24
 
 Fixup: v0.3.0 had =Cargo.lock= mismatch with =Cargo.toml=
