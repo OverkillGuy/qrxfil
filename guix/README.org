@@ -1,0 +1,73 @@
+#+TITLE: Packaging qrxfil in Guix
+
+An attempt at packaging =qrxfil= as a [[https://guix.gnu.org/][Guix]] package.
+
+* What is Guix
+[[https://guix.gnu.org/en/manual/en/html_node/Invoking-guix-pack.html#index-relocatable-binaries][Guix]] is a next-generation package manager (similar to Nix), describing
+packages as source + build operations, enabling [[https://reproducible-builds.org/][reproducible build]],
+transactional upgrades and rollbacks, and much more.
+
+Guix package definitions rely on the specific build system of the
+target language to avoid duplication (see [[https://guix.gnu.org/en/cookbook/en/guix-cookbook.html#Packaging-Tutorial][Packaging Tutorial]]). For
+Rust, this means leveraging =cargo=.
+
+This README can't/won't explain why Guix is amazing, just read up
+about it, it's great.
+
+
+* Packaging qrxfil
+
+The =qrxfil.scm= file describes a =qrxfil= package built by cloning the
+Github repo at a known tag, running =cargo build --release= as needed,
+skipping tests (due to dependency on =pandoc= and =pdflatex=)
+
+Some of the dependencies of =qrxfil= aren't packaged yet in Guix, and
+need porting over. Thankfully, [[https://guix.gnu.org/en/cookbook/en/guix-cookbook.html#Recursive-importers-1][Guix makes this easy]]. Imported those
+via =guix import crate --recursive packagename=, but some have already
+got a version to derive/inherit from. See =qrxfil-deps.scm= for the
+result. Future effort will address minizing the number of such
+packages, either by upstreaming them into Guix project as packages
+(when package is missing altogether), by lowering the minimum version
+=qrxfil= depends on to a version already available, or by making the
+(newer) version derive (inherit) from existing guix versions (just
+changing the git tag and checksum).
+
+To build (but not install), run the following in a Guix
+environment:
+
+#+begin_src shell
+guix build --load-path=. qrxfil  # add --kep to examine failures
+#+end_src
+* Install
+
+#+begin_src shell
+guix install --load-path=. qrxfil
+#+end_src
+
+* Exporting the package
+
+And exporting the built package into a tarball for running it on a
+foreign machine:
+
+#+begin_src shell
+guix pack --load-path=. -RR --save-provenance --root=qrxfil.tar.bz2 --compression=bzip2 -S /mybin=bin qrxfil
+# unpack the package into ./gnu and symlinks ./bin/qrxfil to ./gnu/...
+tar xjvf qrxfil.tar.bz2
+# Run qrxfil from the packed version:
+./bin/qrxfil --help
+#+end_src
+
+
+* Docker image
+
+To build an OCI-compliant docker image tarball, use this:
+
+#+begin_src shell
+guix pack --load-path=. --format=docker --entry-point=bin/qrxfil --root=qrxfil-docker.tar.gz qrxfil
+docker load < qrxfil-docker.tar.gz
+docker run -ti qrxfil
+#+end_src
+
+* Continuous integration
+Would be nice to package inside CI. See [[https://github.com/PromyLOPh/guix-install-action/blob/master/.github/workflows/test.yml][Guix install Github actions]],
+and [[https://github.com/PromyLOPh/guix-install-action/blob/master/.github/workflows/test.yml][Sample Github action for building a guix package]] for how to do that.
