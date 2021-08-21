@@ -13,7 +13,7 @@ payload size.
 QR codes themselves are ASCII text, encoding "Fragments", a truncated
 qrxfil message format defined by:
 
-#+begin_verbatim
+#+BEGIN_SRC text
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -21,7 +21,7 @@ qrxfil message format defined by:
 +-+-+-+-+-+-+-+-+                                               +
 |               Base64 encoded Fragment Payload...              |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-#+end_verbatim
+#+END_SRC
 # Generated via https://www.luismg.com/protocol
 # protocol "012:3,OF:2,178:3,Base64 encoded Fragment Payload...:56"
 
@@ -40,7 +40,7 @@ The fragment payload is a Base64-encoded blob of pseudo binary described below.
 Peeling off the QR code fragmentation, a QRxfil payload is made up of
 the following information, once base64 decoded:
 
-#+BEGIN_VERBATIM
+#+BEGIN_SRC text
  0                   1                   2                   3
  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
@@ -54,7 +54,7 @@ the following information, once base64 decoded:
 +-+-+-+-+-+-+-+                                                 +
 |                           Payload...                          |
 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-#+END_VERBATIM
+#+END_SRC
 # Generated via https://www.luismg.com/protocol
 # protocol "QRXFIL:6,Version:3,Flags:8,Filename:12,;:1,SHA256 Checksum:64,Payload Sz:8,;:1,Payload...:57"
 
