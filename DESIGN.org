@@ -1,17 +1,14 @@
 #+TITLE: Qrxfil file format design
 
-A description of the file format Qrxfil encodes into QR codes for
-operations.
+A description of the future file format Qrxfil will encode into QR
+codes, and some reasoning for why it's designed this way.
 
-The design goal is to make a simple enough format that allows
-splitting arbitrary (potentially binary) files across multiple QR
-codes along with extra file metadata, with configurable QR code
-payload size.
+* Current design and limitations
 
-* Fragments
-
-QR codes themselves are ASCII text, encoding "Fragments", a truncated
-qrxfil message format defined by:
+The current system is very simple, and has sufficed for basic
+features. It consists of ASCII-encoded QR code text,
+with a fixed-size 8 characters long header, and a base64 payload
+representing the "chunked" file fragment.
 
 #+BEGIN_SRC text
  0                   1                   2                   3
@@ -32,50 +29,95 @@ qrxfil message format defined by:
 
 The "OF" litteral is intended like page numbers: "120 of 123", so that
 decoding a QRcode matching the regex =^[0-9]{3}OF[0-9]{3}= reveals a
-=QRxfil= fragment, like [[https://linux.die.net/man/5/magic][magic(5)]].
+=QRxfil= fragment, like a file [[https://linux.die.net/man/5/magic][magic(5)]].
 
-The fragment payload is a Base64-encoded blob of pseudo binary described below.
+Given multiple such ASCII texts (scanned from generated QR codes),
+reconstructing a file is a matter of concatenating the payloads
+(sorted by chunk ID), and running base64 decode on the resulting
+string.
 
-* qrxfil payload
-Peeling off the QR code fragmentation, a QRxfil payload is made up of
-the following information, once base64 decoded:
+This simple design has worked wonders as a baseline for features, but
+is constrained by its simplicity.
 
-#+BEGIN_SRC text
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-|   QRXFIL  |Vers.|     Flags     |        Filename       |;|   |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+   +
-|                        SHA256 Checksum                        |
-+                                                           +-+-+
-|                                                           |   |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-| Payload Sz|;|                                                 |
-+-+-+-+-+-+-+-+                                                 +
-|                           Payload...                          |
-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-#+END_SRC
-# Generated via https://www.luismg.com/protocol
-# protocol "QRXFIL:6,Version:3,Flags:8,Filename:12,;:1,SHA256 Checksum:64,Payload Sz:8,;:1,Payload...:57"
+The base64 operation incurs an overhead of 34% over initial file, used
+to ensure that the QRcode scanners export the code properly. Such a
+tradeoff should be made optional as fallback for scanners that don't
+support binary QRcodes handling properly, decreasing average payload
+size.
 
-- Uppercase QRXFIL litteral
-- 3 digit qrxfil fileformat version
-- 8 characters reserved for payload flags (compression, etc)
-- Filename, arbitrary size, delimited by =;= character
-- SHA256 Checksum of the actual payload (64 characters)
-- Payload size , arbitrary size, delimited by =;= character
-- Payload (rest of the message, payload size before)
+Further to this, explicit file compression would lower transmission
+size, but marking such a compression (algorithm & parameters)
+is impossible currently.
 
-By design, the payload headers are at the beginning of the file to
-facilitate metadata transfer when scanning the first QR fragment,
-revealing all the file information a user may want to know about
-what's being scanned.
+Note also that the reconstructed file's name is not transmitted, nor
+is any indication of what the file is about (file type, checksum of
+contents, even an arbitrary message for user reconstructing the file).
+Extra file metadata would be appreciated. Current checksumming is
+limited to relying on the QR code medium itself to guarantee
+message-level consistency.
 
-The "QRXFIL" litteral is used as [[https://linux.die.net/man/5/magic][file magic(5)]].
+Along with compression, use of encryption on top of the fragments
+would be beneficial, such as passphrase-driven AES256, or Shamir
+secret sharing, for separating files into (e.g.) 7 fragments, with 5
+fragments required to reconstruct the file.
 
-* Considerations
-- Binary files don't encode well to QR codes, but base64 is wasteful.
-  Binary QR code? Many detectors don't support them well, rely on
-  ASCII and base64 for binary.
-- Base64 the entire file then split? or split then base64 the
-  splitted? Byte-delimitation issues!
+* Design goals and requirements
+
+Given the successes and limitations of the current file format, we
+extract the following requirements as guidelines for whatever solution.
+
+- File prefix such as [[https://linux.die.net/man/5/magic][file magic(5)]] to distinguish =qrxfil='s codes when
+  decoding with normal scanners.
+- Keep legible "fragment id" and "total fragment count" in header
+- Support for binary codes, base64 (ASCII qrcodes), and extensible
+  payload compression, including encodings (RLE, Huffman...)
+- Support arbitrary-length metadata including filename, expected size,
+  file checksum.
+- Support for multiple "message types" (extensible) for redundancy:
+  metadata should be able to recur in multiple fragments, not just in
+  the very first fragment sent.
+- Versioning of file format, to enable further features
+
+# * qrxfil payload
+# Peeling off the QR code fragmentation, a QRxfil payload is made up of
+# the following information, once base64 decoded:
+
+# #+BEGIN_SRC text
+#  0                   1                   2                   3
+#  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+# +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+# |   QRXFIL  |Vers.|     Flags     |        Filename       |;|   |
+# +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+   +
+# |                        SHA256 Checksum                        |
+# +                                                           +-+-+
+# |                                                           |   |
+# +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+# | Payload Sz|;|                                                 |
+# +-+-+-+-+-+-+-+                                                 +
+# |                           Payload...                          |
+# +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+# #+END_SRC
+# # Generated via https://www.luismg.com/protocol
+# # protocol "QRXFIL:6,Version:3,Flags:8,Filename:12,;:1,SHA256 Checksum:64,Payload Sz:8,;:1,Payload...:57"
+
+# - Uppercase QRXFIL litteral
+# - 3 digit qrxfil fileformat version
+# - 8 characters reserved for payload flags (compression, etc)
+# - Filename, arbitrary size, delimited by =;= character
+# - SHA256 Checksum of the actual payload (64 characters)
+# - Payload size , arbitrary size, delimited by =;= character
+# - Payload (rest of the message, payload size before)
+
+# By design, the payload headers are at the beginning of the file to
+# facilitate metadata transfer when scanning the first QR fragment,
+# revealing all the file information a user may want to know about
+# what's being scanned.
+
+# The "QRXFIL" litteral is used as [[https://linux.die.net/man/5/magic][file magic(5)]].
+
+# * Considerations
+# - Binary files don't encode well to QR codes, but base64 is wasteful.
+#   Binary QR code? Many detectors don't support them well, rely on
+#   ASCII and base64 for binary.
+# - Base64 the entire file then split? or split then base64 the
+#   splitted? Byte-delimitation issues!
