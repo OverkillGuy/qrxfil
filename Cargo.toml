@@ -11,26 +11,26 @@ edition = "2018"
 
 [dependencies]
 # PNG/SVG QR codes
-qrcode = "0.12"
+qrcode = "0.12.0"
 # UTF8 QR codes (forked from qrcode)
 qr_code = "1.1.0"
-image = "^0.23"
+image = "0.23.14"
 base64 = "0.13.0"
 clap = "2.33.3"
-itertools = "^0.10"
-thiserror = "1.0.24"
-pandoc = "0.8.4"
-csv = "1.1"
-serde = { version = "^1", features = ["derive"] }
+itertools = "0.10.1"
+thiserror = "1.0.29"
+pandoc = "0.8.5"
+csv = "1.1.6"
+serde = { version = "1.0.130", features = ["derive"] }
 
 
 
 [dev-dependencies]
-rand = "0.8.3"
-assert_cmd = "1.0.3"
-assert_fs = "1.0.1"
-predicates = "1.0.7"
+rand = "0.8.4"
+assert_cmd = "2.0.1"
+assert_fs = "1.0.5"
+predicates = "2.0.2"
 # Symmetric decode test
-rqrr = {version = "0.3.2", features = ["image"]}
-test-case = "1.1.0"
-pdf = "0.7.1"
+rqrr = { version = "0.3.2", features = ["image"] }
+test-case = "1.2.0"
+pdf = "0.7.2"
