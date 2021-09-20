@@ -158,18 +158,18 @@ pub fn check_chunk_range(chunks: &[EncodedChunk]) -> Result<Vec<EncodedChunk>, R
         actual_chunk_ids.insert(chunk.id, chunk.clone());
     }
     let expected_chunk_ids: HashSet<u16> = (1..=expected_total).collect();
-    let actual_chunk_ids_set: HashSet<u16> = actual_chunk_ids.keys().cloned().collect();
+    let actual_chunk_ids_set: HashSet<u16> = actual_chunk_ids.keys().copied().collect();
     // Do we have enough chunks?
 
     // We have enough chunks, check duplicates for corrupted payload
     if actual_chunk_ids_set == expected_chunk_ids {
-        return collapse_chunks(&chunks);
+        return collapse_chunks(chunks);
     }
 
     if actual_chunk_ids_set.is_subset(&expected_chunk_ids) {
         let missing_ids = expected_chunk_ids
             .difference(&actual_chunk_ids_set)
-            .cloned()
+            .copied()
             .collect::<Vec<u16>>();
         return Err(RestoreError::MissingChunk {
             expected_total,
@@ -180,7 +180,7 @@ pub fn check_chunk_range(chunks: &[EncodedChunk]) -> Result<Vec<EncodedChunk>, R
     if actual_chunk_ids_set.is_superset(&expected_chunk_ids) {
         let too_many_ids = actual_chunk_ids_set
             .difference(&expected_chunk_ids)
-            .cloned()
+            .copied()
             .collect::<Vec<u16>>();
         return Err(RestoreError::TooManyChunks {
             expected_total,

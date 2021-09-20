@@ -31,7 +31,6 @@
 
 use clap::{crate_version, App, Arg, ArgMatches, SubCommand};
 use image::Luma;
-use qr_code;
 use qrcode::QrCode;
 use std::fs;
 use std::io::{BufRead, BufReader, Read, Seek, SeekFrom, Write};
@@ -215,7 +214,7 @@ fn reassemble(
     // re-sort the chunks for out-of-order scanning
     chunks.sort_by_key(|chunk| chunk.id);
 
-    let chunks = parser::check_chunk_range(&chunks)?;
+    let chunks = parser::check_chunk_range(chunks)?;
 
     let concatenated_chunk_payloads = chunks
         .iter()
