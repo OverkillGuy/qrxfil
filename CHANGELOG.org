@@ -7,6 +7,8 @@ binary application not a library with a contract.
 
 * [Unreleased]
 
+** Added
+- Experimental [[https://guix.gnu.org/][Guix]] packaging in the =guix/= folder
 
 ** Fixed
 - Running =qrxfil= no longer shows hardcoded =0.1.0=, uses crate version instead.
